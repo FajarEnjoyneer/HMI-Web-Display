@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Display Monitoring - HMI 10"</title>
+
+  <style>
+    :root {
+      --design-w: 1024;
+      --design-h: 600;
+      --bg: #f8f9fb;
+      --card: #fff;
+      --border-color: #e0e0e0;
+      --text-color: #222;
+      --muted: #6b7280;
+      --green: #28a745;
+      --red: #dc3545;
+      --blue: #007bff;
+      --orange: #fd7e14;
+      --radius: 8px;
+      --ui-font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    }
+
+    .app,
+    .app * {
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-user-drag: none;
+    }
+
+    .app input,
+    .app textarea,
+    .app select,
+    .app .allow-select {
+      -webkit-user-select: text !important;
+      -moz-user-select: text !important;
+      -ms-user-select: text !important;
+      user-select: text !important;
+    }
+
+
+    .app button {
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      font-family: var(--ui-font);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow: auto;
+    }
+
+    .viewport {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      box-sizing: border-box;
+      background: var(--bg);
+    }
+
+    .app {
+      width: calc(var(--design-w)*1px);
+      height: calc(var(--design-h)*1px);
+      background: var(--card);
+      border-radius: calc(var(--radius)+2px);
+      padding: 10px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transform-origin: top center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+    }
+
+    header {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      padding: 4px 8px;
+    }
+
+    .header-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: .6px;
+    }
+
+    #connection-status {
+      position: absolute;
+      right: 10px;
+      top: 8px;
+      font-size: 13px;
+      font-weight: 800;
+      padding: 6px 10px;
+      border-radius: 10px;
+      color: #fff;
+    }
+
+    #connection-status.connected {
+      background: var(--green);
+    }
+
+    #connection-status.disconnected {
+      background: var(--red);
+    }
+
+    #connection-status.simulating {
+      background: var(--orange);
+    }
+
+    .status-row {
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+      flex: 0 0 auto;
+      min-height: 0;
+    }
+
+    .status-box {
+      flex: 1 1 0;
+      min-width: 0;
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 5px;
+      text-align: center;
+      font-size: 15px;
+      box-sizing: border-box;
+    }
+
+    .status-box strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 15px;
+      color: var(--text-color);
+    }
+
+    .status-box .value {
+      font-weight: 800;
+      color: #111;
+      font-size: 15px;
+    }
+
+    .chart-area {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    .chart-card {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: auto;
+      min-height: 0;
+      flex: 1 1 auto;
+      background: var(--card);
+      border-radius: 10px;
+      padding: 0px;
+      box-sizing: border-box;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 12px;
+    }
+
+    .chart-title {
+      font-weight: 800;
+      font-size: 16px;
+    }
+
+    .range-text {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend-container {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      align-items: center;
+      padding: 0;
+      flex-wrap: wrap;
+      margin-bottom: 2px;
+    }
+
+    .legend-button {
+      border: none;
+      border-radius: 999px;
+      color: #fff;
+      font-weight: 800;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      box-shadow: 0 6px 14px rgba(0, 0, 0, .08);
+    }
+
+    .legend-button.hidden {
+      opacity: .34;
+      filter: grayscale(1);
+      box-shadow: none;
+    }
+
+    .legend-button:focus {
+      outline: 3px solid rgba(17, 24, 39, 0.12);
+      outline-offset: 3px;
+    }
+
+    .chart-canvas {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-height: 270px;
+      display: block;
+      flex: 1 1 auto;
+      z-index: 1;
+    }
+
+    .chart-canvas canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+      border-radius: 6px;
+      background: #fff;
+      /* make canvas non-draggable as extra safety */
+      -webkit-user-drag: none;
+      user-drag: none;
+    }
+
+    .note {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      background: #f6f6f7;
+      border-radius: 10px;
+      padding: 12px;
+      border: 1px solid #e6e6e6;
+      box-sizing: border-box;
+      flex: 0 0 auto;
+      position: relative;
+      z-index: 2;
+    }
+
+    .note-left {
+      width: 65%;
+    }
+
+    .note-right {
+      width: 35%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    select,
+    textarea,
+    input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #cfcfcf;
+      box-sizing: border-box;
+      font-size: 14px;
+      font-family: var(--ui-font);
+      /* Ensure form controls remain selectable */
+      -webkit-user-select: text !important;
+      -moz-user-select: text !important;
+      -ms-user-select: text !important;
+      user-select: text !important;
+    }
+
+    button {
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 15px;
+    }
+
+    .note-status {
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .note-status.success {
+      color: var(--green);
+    }
+
+    .note-status.error {
+      color: var(--red);
+    }
+
+    .sr-only {
+      position: absolute !important;
+      height: 1px;
+      width: 1px;
+      overflow: hidden;
+      clip: rect(1px, 1px, 1px, 1px);
+      white-space: nowrap;
+      clip-path: inset(50%);
+      border: 0;
+      padding: 0;
+      margin: -1px;
+    }
+
+    @media (max-width:980px) {
+      .app {
+        transform-origin: top left;
+      }
+
+      .status-row {
+        flex-direction: column;
+      }
+
+      .note-left,
+      .note-right {
+        width: 100%
+      }
+
+      .note {
+        flex-direction: column
+      }
+
+      .chart-canvas {
+        min-height: 200px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="viewport">
+    <div class="app" id="app" aria-label="Display Monitoring Dashboard">
+      <header>
+        <div class="header-title">DISPLAY MONITORING</div>
+        <div id="connection-status" class="disconnected" role="status" aria-live="polite">DISCONNECTED</div>
+      </header>
+
+      <div class="status-row" aria-label="Status">
+        <div class="status-box">
+          <strong id="ds-label-bpv">BPV</strong>
+          <div id="ds-pressure-bpv" class="value">Pressure: -- bar</div>
+        </div>
+
+        <div class="status-box">
+          <strong id="ds-label-str5">Sterilizer 5</strong>
+          <div id="ds-pressure-str5" class="value">Pressure: -- bar</div>
+        </div>
+
+        <div class="status-box">
+          <strong id="ds-label-str6">Sterilizer 6</strong>
+          <div id="ds-pressure-str6" class="value">Pressure: -- bar</div>
+        </div>
+
+        <div class="status-box">
+          <strong id="ds-label-str7">Sterilizer 7</strong>
+          <div id="ds-pressure-str7" class="value">Pressure: -- bar</div>
+        </div>
+      </div>
+
+      <div class="chart-area" aria-label="Chart area">
+        <div class="chart-card">
+          <div id="legendButtons" class="legend-container" role="toolbar" aria-label="Chart Legend"></div>
+
+          <div class="chart-canvas" aria-hidden="false">
+            <!-- canvas set draggable="false" for extra safety -->
+            <canvas id="mainChart" aria-label="Grafik tekanan" draggable="false"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="note" role="region" aria-label="Laporan Gangguan / Catatan">
+        <div class="note-left">
+          <label for="noteType">Laporan Gangguan / Catatan</label>
+          <select id="noteType" aria-label="Tipe laporan">
+            <option value="operational">Operational hour</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="blades">Blades</option>
+          </select>
+          <label for="noteText" style="margin-top:8px;">Keterangan:</label>
+          <!-- textarea remains selectable and editable -->
+          <textarea id="noteText" rows="4" placeholder="Tulis catatan di sini..." aria-label="Keterangan"></textarea>
+        </div>
+        <div class="note-right">
+          <div style="font-weight:800;">Aksi</div>
+          <button id="sendNoteBtn" type="button" aria-label="Kirim Laporan">Kirim Laporan</button>
+          <div id="noteStatus" class="note-status" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div id="chartSummary" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+      <table id="a11y-data" class="sr-only" aria-hidden="false">
+        <caption>Nilai tekanan terakhir</caption>
+        <thead>
+          <tr>
+            <th>Sensor</th>
+            <th>Tekanan (bar)</th>
+            <th>Waktu</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>BPV</td>
+            <td id="a11y-bpv">—</td>
+            <td id="a11y-bpv-time">—</td>
+          </tr>
+          <tr>
+            <td>Sterilizer 5</td>
+            <td id="a11y-str5">—</td>
+            <td id="a11y-str5-time">—</td>
+          </tr>
+          <tr>
+            <td>Sterilizer 6</td>
+            <td id="a11y-str6">—</td>
+            <td id="a11y-str6-time">—</td>
+          </tr>
+          <tr>
+            <td>Sterilizer 7</td>
+            <td id="a11y-str7">—</td>
+            <td id="a11y-str7-time">—</td>
+          </tr>
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+
+  <script>
+    /* Prevent dragstart & selectstart for non-form elements.
+       Allow form controls (input/select/textarea) to behave normally.
+       This JS is defensive — CSS handles most cases, but JS prevents
+       cases where browsers still allow dragging or selection via events. */
+    (function () {
+      document.addEventListener('dragstart', function (e) {
+        // allow drag if target is a form control (rare) or has attribute draggable="true"
+        if (e.target && (e.target.closest('input,textarea,select') || e.target.getAttribute('draggable') === 'true')) return;
+        e.preventDefault();
+      }, { passive: false });
+
+      document.addEventListener('selectstart', function (e) {
+        // allow selection if inside input/textarea/select or explicitly allowed
+        if (e.target && (e.target.closest('input,textarea,select') || e.target.closest('.allow-select'))) return;
+        e.preventDefault();
+      }, { passive: false });
+
+      // also prevent touch callout (long-press) on Android/iOS where CSS might not be enough
+      document.addEventListener('touchstart', function (e) {
+        // no-op; keeping listener present avoids some long-press defaults on certain webviews
+      }, { passive: true });
+    })();
+
+    /* (Below: the rest of your original JS can remain unchanged) */
+    (function () {
+      /* ---------- CONFIG: set X window = 30 minutes (1800s), Y fixed 0-6 ---------- */
+      const CONFIG = {
+        MAX_POINTS: 50,
+        WINDOW_SECONDS: 5 * 60, // 30 minutes (note: kept the original value as in your file)
+        WS_PATH: '/ws/mqtt',
+        TARGET_FPS: 25
+      };
+
+      const DATASETS = [
+        { label: 'BPV', field: 'bpv', color: '#8e44ad', id: 'ds-pressure-bpv', css: 'c-bpv', a11yId: 'a11y-bpv', a11yTimeId: 'a11y-bpv-time' },
+        { label: 'Sterilizer 5', field: 'sterilizer.5', color: '#0b8b10', id: 'ds-pressure-str5', css: 'c-ster5', a11yId: 'a11y-str5', a11yTimeId: 'a11y-str5-time' },
+        { label: 'Sterilizer 6', field: 'sterilizer.6', color: '#004bff', id: 'ds-pressure-str6', css: 'c-ster6', a11yId: 'a11y-str6', a11yTimeId: 'a11y-str6-time' },
+        { label: 'Sterilizer 7', field: 'sterilizer.7', color: '#1fa3a3', id: 'ds-pressure-str7', css: 'c-ster7', a11yId: 'a11y-str7', a11yTimeId: 'a11y-str7-time' }
+      ];
+
+      const STATE = {
+        times: [],
+        series: DATASETS.map(() => []),
+        labels: [],
+        visible: DATASETS.map(() => true),
+        ws: null,
+        reconnectTimer: null,
+        reconnectAttempts: 0
+      };
+
+      const ui = {
+        conn: document.getElementById('connection-status'),
+        legend: document.getElementById('legendButtons'),
+        canvas: document.getElementById('mainChart'),
+        dsEls: DATASETS.map(d => d.id ? document.getElementById(d.id) : null),
+        sendNoteBtn: document.getElementById('sendNoteBtn'),
+        noteText: document.getElementById('noteText'),
+        noteType: document.getElementById('noteType'),
+        noteStatus: document.getElementById('noteStatus'),
+        rangeText: document.getElementById('rangeText'),
+        chartSummary: document.getElementById('chartSummary'),
+        a11yIds: DATASETS.map(d => ({ val: document.getElementById(d.a11yId), time: document.getElementById(d.a11yTimeId) }))
+      };
+
+      const canvas = ui.canvas;
+      const ctx = canvas.getContext && canvas.getContext('2d');
+
+      let resizeObserver = null;
+      let gridCache = null;
+      let lastViewport = { w: 0, h: 0, dpr: 0 };
+
+      function fit() {
+        if (!canvas) return;
+        const container = canvas.parentElement;
+        const rect = container.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.max(1, Math.round(rect.width * dpr));
+        const h = Math.max(1, Math.round(rect.height * dpr));
+        if (canvas.width !== w || canvas.height !== h || lastViewport.dpr !== dpr || lastViewport.w !== rect.width || lastViewport.h !== rect.height) {
+          canvas.width = w; canvas.height = h;
+          canvas.style.width = rect.width + 'px';
+          canvas.style.height = rect.height + 'px';
+          if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          lastViewport = { w: rect.width, h: rect.height, dpr };
+          buildGridCache();
+        }
+      }
+
+      window.addEventListener('resize', applyScale);
+      window.addEventListener('hmi-resize', fit);
+      window.addEventListener('resize', fit);
+
+      if (window.ResizeObserver && canvas && canvas.parentElement) {
+        try {
+          resizeObserver = new ResizeObserver(() => fit());
+          resizeObserver.observe(canvas.parentElement);
+        } catch (e) { console.warn('ResizeObserver disabled', e); }
+      }
+
+      function applyScale() {
+        const vw = Math.max(320, window.innerWidth);
+        const vh = Math.max(240, window.innerHeight);
+        const pad = 16;
+        const scale = Math.min((vw - pad) / 1024, (vh - pad) / 600, 1);
+        document.getElementById('app').style.transform = 'scale(' + scale + ')';
+        const top = Math.max(0, (vh - 600 * scale) / 2);
+        document.getElementById('app').style.marginTop = top + 'px';
+        window.dispatchEvent(new Event('hmi-resize'));
+      }
+
+      function buildGridCache() {
+        if (!canvas) return;
+        const container = canvas.parentElement;
+        const rect = container.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const cssW = rect.width, cssH = rect.height;
+        const pixelW = Math.max(1, Math.round(cssW * dpr));
+        const pixelH = Math.max(1, Math.round(cssH * dpr));
+        const pad = { l: 68, r: 10, t: 12, b: 80 };
+        const yRows = 5, xCols = 6;
+
+        if (gridCache && lastViewport.w === cssW && lastViewport.h === cssH && lastViewport.dpr === dpr) return;
+
+        const c = document.createElement('canvas');
+        c.width = pixelW; c.height = pixelH;
+        c.style.width = cssW + 'px'; c.style.height = cssH + 'px';
+        const gctx = c.getContext('2d');
+        gctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const plotW = cssW - pad.l - pad.r;
+        const plotH = cssH - pad.t - pad.b;
+        gctx.fillStyle = '#fff';
+        gctx.fillRect(pad.l - 1, pad.t - 1, plotW + 2, plotH + 2);
+
+        gctx.strokeStyle = '#eef2f7'; gctx.lineWidth = 1;
+        for (let r = 0; r <= yRows; r++) {
+          const y = pad.t + (plotH * r / yRows) + 0.5;
+          gctx.beginPath(); gctx.moveTo(pad.l, y); gctx.lineTo(pad.l + plotW, y); gctx.stroke();
+        }
+        for (let ccol = 0; ccol <= xCols; ccol++) {
+          const x = pad.l + (plotW * ccol / xCols) + 0.5;
+          gctx.beginPath(); gctx.moveTo(x, pad.t); gctx.lineTo(x, pad.t + plotH); gctx.stroke();
+        }
+
+        gridCache = c;
+      }
+
+      function binarySearchInsertIndex(arr, ts) {
+        let lo = 0, hi = arr.length;
+        while (lo < hi) {
+          const mid = (lo + hi) >> 1;
+          if (arr[mid] < ts) lo = mid + 1; else hi = mid;
+        }
+        return lo;
+      }
+
+      // FIX: Y axis static 0-6
+      function computePressureRange() {
+        return { min: 0, max: 6 };
+      }
+
+      function formatTimeLabel(ts) {
+        try { return new Date(ts * 1000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); } catch (e) { return new Date(ts * 1000).toLocaleTimeString(); }
+      }
+
+      function pruneOldPoints(cutoffTs) {
+        if (!STATE.times.length) return;
+        const idx = binarySearchInsertIndex(STATE.times, cutoffTs);
+        if (idx > 0) {
+          STATE.times = STATE.times.slice(idx);
+          STATE.labels = STATE.labels.slice(idx);
+          for (let s = 0; s < STATE.series.length; s++) STATE.series[s] = STATE.series[s].slice(idx);
+        }
+        if (STATE.times.length > CONFIG.MAX_POINTS) {
+          const extra = STATE.times.length - CONFIG.MAX_POINTS;
+          STATE.times = STATE.times.slice(extra);
+          STATE.labels = STATE.labels.slice(extra);
+          for (let s = 0; s < STATE.series.length; s++) STATE.series[s] = STATE.series[s].slice(extra);
+        }
+      }
+
+      function insertAt(idx, ts, label, values) {
+        if (idx === STATE.times.length) {
+          STATE.times.push(ts);
+          STATE.labels.push(label);
+          for (let s = 0; s < STATE.series.length; s++) STATE.series[s].push(values[s]);
+        } else {
+          STATE.times.splice(idx, 0, ts);
+          STATE.labels.splice(idx, 0, label);
+          for (let s = 0; s < STATE.series.length; s++) STATE.series[s].splice(idx, 0, values[s]);
+        }
+      }
+
+      function getNested(obj, path) { try { return path.split('.').reduce((o, p) => o != null ? o[p] : null, obj); } catch (e) { return null; } }
+
+      function updateA11ySummary(ts) {
+        const tStr = formatTimeLabel(ts);
+        DATASETS.forEach((d, i) => {
+          const a = ui.a11yIds[i];
+          const arr = STATE.series[i];
+          let last = null;
+          for (let k = arr.length - 1; k >= 0; k--) {
+            const v = arr[k];
+            if (typeof v === 'number') { last = v; break; }
+          }
+          if (a && a.val) a.val.textContent = last == null ? '—' : Number(last).toFixed(2);
+          if (a && a.time) a.time.textContent = tStr;
+        });
+
+        const parts = DATASETS.map((d, i) => {
+          const arr = STATE.series[i];
+          let last = null;
+          for (let k = arr.length - 1; k >= 0; k--) {
+            const v = arr[k];
+            if (typeof v === 'number') { last = v; break; }
+          }
+          return `${d.label}: ${last == null ? 'kosong' : Number(last).toFixed(2) + ' bar'}`;
+        });
+        ui.chartSummary.textContent = `Update ${tStr}. ${parts.join('. ')}.`;
+      }
+
+      function pushPayload(payload, tsInput) {
+        let ts = null;
+        if (typeof tsInput === 'number' && isFinite(tsInput)) ts = tsInput;
+        else if (payload && typeof payload.ts === 'number' && isFinite(payload.ts)) ts = payload.ts;
+        else if (payload && payload.time) {
+          const parsed = Date.parse(payload.time);
+          if (!isNaN(parsed)) ts = parsed / 1000;
+        }
+        if (ts == null || !isFinite(ts)) ts = Date.now() / 1000;
+
+        const label = new Date(ts * 1000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        const values = [];
+        DATASETS.forEach((d) => {
+          const raw = getNested(payload, d.field);
+          let v = null;
+          if (raw == null) v = null;
+          else if (typeof raw === 'number') v = raw;
+          else { const n = Number(raw); v = Number.isFinite(n) ? n : null; }
+          values.push(v);
+        });
+
+        const idx = binarySearchInsertIndex(STATE.times, ts);
+        insertAt(idx, ts, label, values);
+        pruneOldPoints(ts - CONFIG.WINDOW_SECONDS);
+
+        // update small status boxes
+        DATASETS.forEach((d, i) => {
+          if (d.id && ui.dsEls[i]) {
+            const arr = STATE.series[i];
+            let last = null;
+            for (let k = arr.length - 1; k >= 0; k--) {
+              const v = arr[k];
+              if (typeof v === 'number') { last = v; break; }
+            }
+            ui.dsEls[i].textContent = last == null ? 'Pressure: --' : 'Pressure: ' + Number(last).toFixed(2) + ' bar';
+          }
+        });
+
+        updateA11ySummary(ts);
+        dirty = true;
+      }
+
+      function draw(displayNowSec) {
+        if (!ctx) return;
+        fit();
+        const containerRect = canvas.parentElement.getBoundingClientRect();
+        const rect = { width: containerRect.width, height: containerRect.height };
+        const pad = { l: 68, r: 10, t: 12, b: 80 };
+        const plotW = rect.width - pad.l - pad.r;
+        const plotH = rect.height - pad.t - pad.b;
+
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        if (gridCache) {
+          ctx.drawImage(gridCache, 0, 0, rect.width, rect.height);
+        } else {
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(pad.l - 1, pad.t - 1, plotW + 2, plotH + 2);
+        }
+
+        // default window
+        let endTime = displayNowSec;
+        let startTime = endTime - CONFIG.WINDOW_SECONDS;
+
+        // If we have data and the data span is less than window, anchor start at earliest data
+        if (STATE.times.length > 0) {
+          const first = STATE.times[0];
+          const last = STATE.times[STATE.times.length - 1];
+          const dataSpan = last - first;
+          if (dataSpan < CONFIG.WINDOW_SECONDS) {
+            // put earliest data at left (startTime = first) and end = first + window
+            startTime = first;
+            endTime = startTime + CONFIG.WINDOW_SECONDS;
+          } else {
+            // otherwise use rolling window to always show recent data up to endTime
+            // but ensure endTime >= last (so newest data is visible)
+            endTime = Math.max(endTime, last);
+            startTime = endTime - CONFIG.WINDOW_SECONDS;
+          }
+        }
+
+        pruneOldPoints(startTime);
+
+        // Y fixed 0..6
+        const pr = { min: 0, max: 6 };
+        ui.rangeText && (ui.rangeText.textContent = `Y: ${pr.min.toFixed(0)}–${pr.max.toFixed(0)} bar · X: 30 menit`);
+
+        // Draw Y labels (5 rows)
+        ctx.fillStyle = '#374151'; ctx.font = '12px ' + (navigator.userAgent.indexOf('Windows') >= 0 ? 'Arial' : 'system-ui');
+        ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+        const yRows = 5;
+        for (let r = 0; r <= yRows; r++) {
+          const frac = 1 - (r / yRows);
+          const val = pr.min + (pr.max - pr.min) * frac;
+          const y = pad.t + (plotH * r / yRows);
+          ctx.fillText(Number(val.toFixed(2)) + ' bar', pad.l - 10, y);
+        }
+
+        ctx.save(); ctx.translate(14, pad.t + plotH / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.fillStyle = '#111827'; ctx.font = '13px system-ui'; ctx.fillText('Pressure (bar)', 0, -8); ctx.restore();
+
+        // X labels and visible indices using binary search
+        const startIdx = binarySearchInsertIndex(STATE.times, startTime);
+        const endIdx = binarySearchInsertIndex(STATE.times, endTime + 0.000001);
+        const visibleCount = Math.max(0, endIdx - startIdx);
+
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '12px system-ui';
+        const bottomExtra = 28;
+
+        if (!visibleCount) {
+          const approxLabelWidth = 90;
+          const maxLabelsBySpace = Math.max(2, Math.floor(plotW / approxLabelWidth));
+          const labelCount = Math.min(6, maxLabelsBySpace);
+          for (let k = 0; k < labelCount; k++) {
+            const frac = k / Math.max(1, labelCount - 1);
+            const ts = startTime + frac * (endTime - startTime);
+            const x = pad.l + plotW * frac;
+            ctx.save();
+            ctx.translate(x, pad.t + plotH + 18 + bottomExtra / 2);
+            ctx.rotate(-Math.PI / 10);
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(formatTimeLabel(ts), 0, 0);
+            ctx.restore();
+          }
+        } else {
+          const maxXLabels = Math.min(6, Math.max(2, Math.floor(plotW / 90)));
+          const step = Math.max(1, Math.floor(visibleCount / maxXLabels));
+          for (let ii = startIdx; ii < endIdx; ii += step) {
+            const ts = STATE.times[ii];
+            const fracX = (ts - startTime) / (endTime - startTime);
+            const x = pad.l + plotW * fracX;
+            const y = pad.t + plotH + 18 + bottomExtra / 2;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(-Math.PI / 6);
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(formatTimeLabel(ts), 0, 0);
+            ctx.restore();
+          }
+        }
+
+        // draw datasets
+        for (let si = 0; si < DATASETS.length; si++) {
+          if (!STATE.visible[si]) continue;
+          const d = DATASETS[si];
+          const times = STATE.times;
+          const arr = STATE.series[si];
+          if (!times.length) continue;
+
+          ctx.beginPath(); ctx.lineWidth = 2; ctx.strokeStyle = d.color; ctx.fillStyle = d.color;
+          let started = false;
+          for (let j = startIdx; j < endIdx; j++) {
+            const t = times[j];
+            const v = arr[j];
+            if (t == null || v == null || isNaN(v)) { started = false; continue; }
+            if (t < startTime || t > endTime) { started = false; continue; }
+            const fracX = (t - startTime) / (endTime - startTime);
+            const x = pad.l + plotW * fracX;
+            const norm = (v - pr.min) / Math.max(0.000001, (pr.max - pr.min));
+            const y = pad.t + plotH * (1 - Math.max(0, Math.min(1, norm)));
+            if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+
+          ctx.save(); ctx.fillStyle = d.color;
+          let visiblePts = Math.max(1, endIdx - startIdx);
+          const sampling = Math.max(1, Math.floor(visiblePts / 300));
+          for (let j = startIdx; j < endIdx; j += sampling) {
+            const t = times[j];
+            const v = arr[j];
+            if (t == null || v == null || isNaN(v)) continue;
+            const fracX = (t - startTime) / (endTime - startTime);
+            const x = pad.l + plotW * fracX;
+            const norm = (v - pr.min) / Math.max(0.000001, (pr.max - pr.min));
+            const y = pad.t + plotH * (1 - Math.max(0, Math.min(1, norm)));
+            ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI * 2); ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        ctx.fillStyle = '#111827'; ctx.font = '13px system-ui'; ctx.textAlign = 'left';
+        ctx.strokeStyle = '#e6e6e6'; ctx.lineWidth = 1; ctx.strokeRect(Math.round(pad.l) + 0.5, Math.round(pad.t) + 0.5, Math.round(plotW) - 1, Math.round(plotH) - 1);
+      }
+
+      let raf = null;
+      let lastFrameTime = 0;
+      let lastFullDraw = 0;
+      const frameInterval = 1000 / CONFIG.TARGET_FPS;
+      let dirty = true;
+
+      function anim(now) {
+        if (!now) now = performance.now();
+        if (now - lastFrameTime >= frameInterval) {
+          if (dirty || (now - lastFullDraw >= 1000)) {
+            lastFrameTime = now - ((now - lastFrameTime) % frameInterval);
+            const nowSec = Date.now() / 1000;
+            draw(nowSec);
+            dirty = false;
+            lastFullDraw = now;
+          }
+        }
+        raf = requestAnimationFrame(anim);
+      }
+
+      function renderLegend() {
+        ui.legend.innerHTML = '';
+        DATASETS.forEach((d, i) => {
+          const btn = document.createElement('button');
+          btn.className = 'legend-button ' + (d.css || '');
+          btn.style.background = d.color;
+          btn.textContent = d.label;
+          btn.dataset.i = i;
+          btn.setAttribute('aria-pressed', String(!!STATE.visible[i]));
+          btn.setAttribute('aria-label', `Toggle ${d.label} series`);
+          btn.title = d.label;
+          if (!STATE.visible[i]) btn.classList.add('hidden');
+          btn.addEventListener('click', () => {
+            const idx = Number(btn.dataset.i);
+            STATE.visible[idx] = !STATE.visible[idx];
+            btn.classList.toggle('hidden', !STATE.visible[idx]);
+            btn.setAttribute('aria-pressed', String(!!STATE.visible[idx]));
+            dirty = true;
+          });
+          ui.legend.appendChild(btn);
+        });
+        fit();
+      }
+      renderLegend();
+
+      function wsUrl() { if (window.HMI_WS_URL) return window.HMI_WS_URL; const proto = (location.protocol === 'https:') ? 'wss:' : 'ws:'; return proto + '//' + location.host + CONFIG.WS_PATH; }
+      function setConn(connected) { ui.conn.textContent = connected ? 'CONNECTED' : 'DISCONNECTED'; ui.conn.classList.toggle('connected', connected); ui.conn.classList.toggle('disconnected', !connected); ui.conn.classList.remove('simulating'); }
+      function setSimulating() { ui.conn.textContent = 'SIMULATING'; ui.conn.classList.add('simulating'); ui.conn.classList.remove('connected'); ui.conn.classList.remove('disconnected'); }
+
+      function scheduleReconnect() {
+        STATE.reconnectAttempts = (STATE.reconnectAttempts || 0) + 1;
+        const base = STATE.reconnectAttempts <= 2 ? 500 : 1000;
+        const delay = Math.min(base * Math.pow(2, Math.min(STATE.reconnectAttempts, 6)), 30000);
+        if (STATE.reconnectTimer) clearTimeout(STATE.reconnectTimer);
+        STATE.reconnectTimer = setTimeout(connectWS, delay);
+      }
+
+      function connectWS() {
+        if (STATE.ws && (STATE.ws.readyState === WebSocket.OPEN || STATE.ws.readyState === WebSocket.CONNECTING)) return;
+        try { STATE.ws = new WebSocket(wsUrl()); } catch (e) { console.warn('WS create error', e); setConn(false); scheduleReconnect(); return; }
+        STATE.ws.onopen = () => { STATE.reconnectAttempts = 0; setConn(true); if (STATE.reconnectTimer) { clearTimeout(STATE.reconnectTimer); STATE.reconnectTimer = null; } };
+        STATE.ws.onmessage = (evt) => { try { const j = JSON.parse(evt.data); let ts = null; if (j && (typeof j.ts === 'number')) ts = j.ts; else if (j && j.time) { const p = Date.parse(j.time); if (!isNaN(p)) ts = p / 1000; } pushPayload(j, ts); } catch (e) { console.warn('Invalid message', e); } };
+        STATE.ws.onclose = () => { setConn(false); scheduleReconnect(); };
+        STATE.ws.onerror = (err) => { console.error('WS error', err); };
+      }
+      setConn(false); connectWS();
+
+      ui.sendNoteBtn && ui.sendNoteBtn.addEventListener('click', () => {
+        const text = ui.noteText.value.trim(); const type = ui.noteType.value;
+        if (!text) { alert('Keterangan kosong'); return; }
+        const payload = { cmd: 'note', type, text, time: new Date().toISOString() };
+        if (STATE.ws && STATE.ws.readyState === WebSocket.OPEN) {
+          STATE.ws.send(JSON.stringify(payload));
+          ui.noteStatus.textContent = 'Laporan terkirim'; ui.noteStatus.className = 'note-status success'; ui.noteText.value = '';
+          setTimeout(() => { ui.noteStatus.textContent = ''; ui.noteStatus.className = 'note-status'; }, 3000);
+        } else {
+          ui.noteStatus.textContent = 'WS tidak terhubung'; ui.noteStatus.className = 'note-status error';
+          setTimeout(() => { ui.noteStatus.textContent = ''; ui.noteStatus.className = 'note-status'; }, 3000);
+        }
+      });
+
+      window.__hmi = { pushPayload, STATE, CONFIG };
+
+      function cleanup() {
+        try { if (raf) cancelAnimationFrame(raf); } catch (e) {}
+        try { if (STATE.ws) STATE.ws.close(); } catch (e) {}
+        try { if (STATE.reconnectTimer) clearTimeout(STATE.reconnectTimer); } catch (e) {}
+        try { if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; } } catch (e) {}
+        try { window.removeEventListener('resize', applyScale); window.removeEventListener('hmi-resize', fit); window.removeEventListener('resize', fit); } catch (e) {}
+      }
+      window.addEventListener('beforeunload', cleanup);
+
+      fit();
+      if (!raf) raf = requestAnimationFrame(anim);
+
+    })();
+  </script>
+</body>
+
+</html>

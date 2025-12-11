@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Display Monitoring - Boiler</title>
+  <style>
+    :root {
+      --design-w: 1024;
+      --design-h: 600;
+      --bg: #f8f9fb;
+      --card: #fff;
+      --border-color: #e0e0e0;
+      --text-color: #222;
+      --muted: #6b7280;
+      --green: #28a745;
+      --red: #dc3545;
+      --blue: #007bff;
+      --radius: 8px;
+      --ui-font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      font-family: var(--ui-font);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow: auto;
+    }
+
+    .viewport {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      box-sizing: border-box;
+      background: var(--bg);
+    }
+
+    .app {
+      width: calc(var(--design-w)*1px);
+      height: calc(var(--design-h)*1px);
+      background: var(--card);
+      border-radius: calc(var(--radius)+2px);
+      padding: 12px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transform-origin: top center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    header {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      padding: 4px 8px;
+    }
+
+    .header-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+    }
+
+    #connection-status {
+      position: absolute;
+      right: 10px;
+      top: 8px;
+      font-size: 13px;
+      font-weight: 800;
+      padding: 6px 10px;
+      border-radius: 10px;
+      color: #fff;
+    }
+
+    #connection-status.connected {
+      background: var(--green);
+    }
+
+    #connection-status.disconnected {
+      background: var(--red);
+    }
+
+    .boiler-status {
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .boiler-box {
+      flex: 1 1 0;
+      min-width: 0;
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    .boiler-box strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 15px;
+      color: var(--text-color);
+    }
+
+    .boiler-box .value {
+      font-weight: 800;
+      font-size: 15px;
+      color: #111;
+    }
+
+    .chart-area {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1 1 0;
+      min-height: 0;
+    }
+
+    .chart-card {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      flex: 1 1 0;
+      min-height: 0;
+      background: var(--card);
+      border-radius: 10px;
+      padding: 12px;
+      box-sizing: border-box;
+      position: relative;
+    }
+
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .chart-title {
+      font-weight: 800;
+      font-size: 16px;
+      margin: 0;
+      color: #111;
+    }
+
+    .range-text {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend-container {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      align-items: center;
+      flex: 0 0 auto;
+      max-width: 100%;
+    }
+
+    .legend-button {
+      border: none;
+      border-radius: 999px;
+      color: #fff;
+      font-weight: 800;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+    }
+
+    .legend-button.hidden {
+      opacity: 0.34;
+      filter: grayscale(1);
+      box-shadow: none;
+    }
+
+    .c-boiler1 {
+      background: #ff1e1e;
+    }
+
+    .c-boiler2 {
+      background: #f39c12;
+    }
+
+    .c-boiler3 {
+      background: #ffd400;
+      color: #111;
+    }
+
+    .chart-canvas {
+      flex: 1 1 0;
+      position: relative;
+      z-index: 10;
+      min-height: 220px;
+      display: block;
+      width: 100%;
+      aspect-ratio: 16/6;
+    }
+
+    .chart-canvas canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+      border-radius: 6px;
+      background: #fff;
+    }
+
+    .note {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      background: #f6f6f7;
+      border-radius: 10px;
+      padding: 12px;
+      border: 1px solid #e6e6e6;
+      box-sizing: border-box;
+      flex: 0 0 auto;
+    }
+
+    .note-left {
+      width: 65%;
+    }
+
+    .note-right {
+      width: 35%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .note label {
+      font-weight: 800;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    select,
+    textarea,
+    input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #cfcfcf;
+      box-sizing: border-box;
+      font-size: 14px;
+      font-family: var(--ui-font);
+    }
+
+    button {
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 15px;
+    }
+
+    @media (max-width:980px) {
+      .app {
+        transform-origin: top left;
+      }
+
+      .boiler-status {
+        flex-direction: column;
+      }
+
+      .note-left,
+      .note-right {
+        width: 100%
+      }
+
+      .note {
+        flex-direction: column;
+      }
+
+      .chart-canvas {
+        min-height: 200px;
+        aspect-ratio: 16/9;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="viewport">
+    <div class="app" id="app" aria-label="Display Monitoring Boiler">
+      <header>
+        <div class="header-title">DISPLAY MONITORING — BOILER</div>
+        <div id="connection-status" class="disconnected" aria-live="polite">DISCONNECTED</div>
+      </header>
+
+      <div class="boiler-status" aria-label="Boiler status">
+        <div class="boiler-box"><strong id="ds-label-0">BOILER 01</strong>
+          <div id="ds-pressure-0" class="value">Pressure: -- bar</div>
+        </div>
+        <div class="boiler-box"><strong id="ds-label-1">BOILER 02</strong>
+          <div id="ds-pressure-1" class="value">Pressure: -- bar</div>
+        </div>
+        <div class="boiler-box"><strong id="ds-label-2">BOILER 03</strong>
+          <div id="ds-pressure-2" class="value">Pressure: -- bar</div>
+        </div>
+      </div>
+
+      <div class="chart-area" aria-label="Chart area">
+        <div class="chart-card" aria-live="polite">
+          <div class="chart-header">
+            <div class="chart-title">Boiler Pressure</div>
+            <div class="range-text" id="rangeText">Range Y: auto</div>
+          </div>
+
+          <div id="legendButtons" class="legend-container" role="toolbar" aria-label="Chart Legend"></div>
+
+          <div class="chart-canvas">
+            <canvas id="mainChart" aria-label="Grafik tekanan boiler"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="note" role="region" aria-label="Laporan Gangguan / Catatan">
+        <div class="note-left">
+          <label for="noteType">Laporan Gangguan / Catatan</label>
+          <select id="noteType" aria-label="Tipe laporan">
+            <option value="operational">Operational hour</option>
+            <option value="maintenance">Maintenance</option>
+          </select>
+          <label for="noteText" style="margin-top:8px;">Keterangan:</label>
+          <textarea id="noteText" rows="4" placeholder="Tulis catatan di sini..." aria-label="Keterangan"></textarea>
+        </div>
+        <div class="note-right">
+          <div style="font-weight:800;">Aksi</div>
+          <button id="sendNoteBtn" type="button" aria-label="Kirim Laporan">Kirim Laporan</button>
+          <div id="noteStatus" class="note-status" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+
+(function(){
+  const CONFIG = { MAX_POINTS: 50, WINDOW_SECONDS: 5*60, WS_PATH:'/ws/mqtt', TARGET_FPS:25 };
+  const DATASETS = [
+    { label:'Boiler 1', field:'boiler.1', color:'#ff1e1e', id:'ds-pressure-0', css:'c-boiler1' },
+    { label:'Boiler 2', field:'boiler.2', color:'#f39c12', id:'ds-pressure-1', css:'c-boiler2' },
+    { label:'Boiler 3', field:'boiler.3', color:'#ffd400', id:'ds-pressure-2', css:'c-boiler3' }
+  ]});
+
+  const STATE = {
+    times: [],
+    series: DATASETS.map(()=>[]),
+    labels: [],
+    visible: DATASETS.map(()=>true),
+    ws: null,
+    reconnectTimer: null,
+    reconnectAttempts: 0
+  };
+
+  const ui = {
+    conn: document.getElementById('connection-status'),
+    legend: document.getElementById('legendButtons'),
+    canvas: document.getElementById('mainChart'),
+    dsEls: DATASETS.map(d => d.id ? document.getElementById(d.id) : null),
+    sendNoteBtn: document.getElementById('sendNoteBtn'),
+    noteText: document.getElementById('noteText'),
+    noteType: document.getElementById('noteType'),
+    noteStatus: document.getElementById('noteStatus'),
+    rangeText: document.getElementById('rangeText')
+  };
+
+  const canvas = ui.canvas;
+  const ctx = canvas.getContext && canvas.getContext('2d');
+
+  (function applyScale(){
+    const designW = 1024, designH = 600;
+    const app = document.getElementById('app');
+    function fn(){
+      const vw = Math.max(320, window.innerWidth);
+      const vh = Math.max(240, window.innerHeight);
+      const pad = 16;
+      const scale = Math.min((vw - pad) / designW, (vh - pad) / designH, 1);
+      app.style.transform = 'scale(' + scale + ')';
+      const top = Math.max(0, (vh - designH * scale) / 2);
+      app.style.marginTop = top + 'px';
+      window.dispatchEvent(new Event('hmi-resize'));
+    }
+    window.addEventListener('resize', fn);
+    window.addEventListener('orientationchange', fn);
+    requestAnimationFrame(fn);
+  })();
+
+  let gridCache = null;
+  let lastViewport = { w:0, h:0, dpr:0 };
+  function fit(){
+    if(!canvas) return;
+    const container = canvas.parentElement;
+    const rect = container.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(1, Math.round(rect.width * dpr));
+    const h = Math.max(1, Math.round(rect.height * dpr));
+    if(canvas.width !== w || canvas.height !== h || lastViewport.dpr !== dpr || lastViewport.w !== rect.width || lastViewport.h !== rect.height){
+      canvas.width = w; canvas.height = h;
+      canvas.style.width = rect.width + 'px'; canvas.style.height = rect.height + 'px';
+      if(ctx) ctx.setTransform(dpr,0,0,dpr,0,0);
+      lastViewport = { w: rect.width, h: rect.height, dpr };
+      buildGridCache();
+    }
+  }
+  window.addEventListener('hmi-resize', fit);
+  window.addEventListener('resize', fit);
+
+  function buildGridCache(){
+    if(!canvas) return;
+    const container = canvas.parentElement;
+    const rect = container.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = rect.width, cssH = rect.height;
+    const pixelW = Math.max(1, Math.round(cssW * dpr));
+    const pixelH = Math.max(1, Math.round(cssH * dpr));
+    if(gridCache && lastViewport.w === cssW && lastViewport.h === cssH && lastViewport.dpr === dpr) return;
+    const c = document.createElement('canvas');
+    c.width = pixelW; c.height = pixelH;
+    c.style.width = cssW + 'px'; c.style.height = cssH + 'px';
+    const g = c.getContext('2d');
+    g.setTransform(dpr,0,0,dpr,0,0);
+    const pad = { l:58, r:12, t:14, b:44 };
+    const plotW = cssW - pad.l - pad.r;
+    const plotH = cssH - pad.t - pad.b;
+    g.fillStyle = '#fff'; g.fillRect(pad.l-1, pad.t-1, plotW+2, plotH+2);
+    g.strokeStyle = '#eef2f7'; g.lineWidth = 1;
+    const rows = 4;
+    for(let r=0;r<=rows;r++){
+      const y = pad.t + plotH * r / rows + 0.5;
+      g.beginPath(); g.moveTo(pad.l, y); g.lineTo(pad.l + plotW, y); g.stroke();
+    }
+    gridCache = c;
+  }
+
+  function binarySearchInsertIndex(arr, ts){
+    let lo=0, hi=arr.length;
+    while(lo<hi){
+      const mid=(lo+hi)>>1;
+      if(arr[mid] < ts) lo = mid+1; else hi = mid;
+    }
+    return lo;
+  }
+  function getNested(obj,path){
+    try { return path.split('.').reduce((o,p) => o!=null ? o[p] : null, obj); } catch(e){ return null; }
+  }
+
+
+  function pushPayload(payload, tsInput){
+    let ts = null;
+    if(typeof tsInput === 'number' && isFinite(tsInput)) ts = tsInput;
+    else if(payload && typeof payload.ts === 'number' && isFinite(payload.ts)) ts = payload.ts;
+    else if(payload && payload.time){
+      const parsed = Date.parse(payload.time);
+      if(!isNaN(parsed)) ts = parsed/1000;
+    }
+    if(ts == null || !isFinite(ts)) ts = Date.now()/1000;
+    const label = new Date(ts*1000).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    const idx = binarySearchInsertIndex(STATE.times, ts);
+    
+    if(idx === STATE.times.length){
+      STATE.times.push(ts);
+      STATE.labels.push(label);
+      DATASETS.forEach((d,i) => {
+        const raw = getNested(payload, d.field);
+        let v = null;
+        if(raw == null) v = null;
+        else if(typeof raw === 'number') v = raw;
+        else { const n = Number(raw); v = Number.isFinite(n) ? n : null; }
+        STATE.series[i].push(v);
+      });
+    } else {
+      STATE.times.splice(idx,0,ts);
+      STATE.labels.splice(idx,0,label);
+      DATASETS.forEach((d,i) => {
+        const raw = getNested(payload, d.field);
+        let v = null;
+        if(raw == null) v = null;
+        else if(typeof raw === 'number') v = raw;
+        else { const n = Number(raw); v = Number.isFinite(n) ? n : null; }
+        STATE.series[i].splice(idx,0,v);
+      });
+    }
+    
+    const cutoff = ts - CONFIG.WINDOW_SECONDS;
+    const cutIdx = binarySearchInsertIndex(STATE.times, cutoff);
+    if(cutIdx > 0){
+      STATE.times = STATE.times.slice(cutIdx);
+      STATE.labels = STATE.labels.slice(cutIdx);
+      for(let s=0;s<STATE.series.length;s++) STATE.series[s] = STATE.series[s].slice(cutIdx);
+    }
+    
+    if(STATE.times.length > CONFIG.MAX_POINTS){
+      const extra = STATE.times.length - CONFIG.MAX_POINTS;
+      STATE.times = STATE.times.slice(extra);
+      STATE.labels = STATE.labels.slice(extra);
+      for(let s=0;s<STATE.series.length;s++) STATE.series[s] = STATE.series[s].slice(extra);
+    }
+    
+    DATASETS.forEach((d,i) => {
+      if(d.id && ui.dsEls[i]){
+        const arr = STATE.series[i];
+        let last = null;
+        for(let k=arr.length-1;k>=0;k--){ const v = arr[k]; if(typeof v === 'number'){ last = v; break; } }
+        ui.dsEls[i].textContent = last == null ? 'Pressure: --' : 'Pressure: ' + Number(last).toFixed(2) + ' bar';
+      }
+    });
+    dirty = true;
+  }
+
+  function computeYRange(){
+    let all = [];
+    for(let i=0;i<STATE.series.length;i++){
+      if(!STATE.visible[i]) continue;
+      const s = STATE.series[i];
+      for(let k=0;k<s.length;k++){
+        const v = s[k];
+        if(typeof v === 'number') all.push(v);
+      }
+    }
+    if(!all.length) return {min:0, max:30}; 
+    const minData = Math.min(...all), maxData = Math.max(...all);
+    let span = Math.max(0.0001, maxData - minData);
+    const pad = Math.max(0.5, span * 0.12);
+    let min = Math.max(0, minData - pad);
+    let max = maxData + pad;
+    
+    if(max < 6) max = 6;
+    return { min, max };
+  }
+
+
+  function draw(displayNowSec){
+    if(!ctx) return;
+    fit();
+    const containerRect = canvas.parentElement.getBoundingClientRect();
+    const rect = { width: containerRect.width, height: containerRect.height };
+    const pad = { l:58, r:12, t:14, b:44 };
+    const plotW = rect.width - pad.l - pad.r;
+    const plotH = rect.height - pad.t - pad.b;
+    ctx.clearRect(0,0,rect.width,rect.height);
+    if(gridCache) ctx.drawImage(gridCache, 0, 0, rect.width, rect.height);
+    else { ctx.fillStyle='#fff'; ctx.fillRect(pad.l-1,pad.t-1,plotW+2,plotH+2); }
+    
+    let endTime = displayNowSec;
+    let startTime = endTime - CONFIG.WINDOW_SECONDS;
+    if(STATE.times.length){
+      const first = STATE.times[0], last = STATE.times[STATE.times.length-1];
+      const dataSpan = last - first;
+      if(dataSpan < CONFIG.WINDOW_SECONDS){ startTime = first; endTime = startTime + CONFIG.WINDOW_SECONDS; }
+      else { endTime = Math.max(endTime, last); startTime = endTime - CONFIG.WINDOW_SECONDS; }
+    }
+    
+    const pr = computeYRange();
+    ui.rangeText.textContent = `Y: ${pr.min.toFixed(2)}–${pr.max.toFixed(2)} bar · X: 30 menit`;
+    ctx.fillStyle = '#374151'; ctx.font = '12px system-ui'; ctx.textAlign = 'right';
+    const yRows = 4;
+    for(let r=0;r<=yRows;r++){
+      const frac = 1 - (r / yRows);
+      const val = pr.min + (pr.max - pr.min) * frac;
+      const y = pad.t + (plotH * r / yRows);
+      ctx.fillText(Number(val.toFixed(2)) + ' bar', pad.l - 8, y + 4);
+    }
+    
+    ctx.fillStyle = '#6b7280'; ctx.font = '12px system-ui'; ctx.textAlign = 'center';
+    
+    const startIdx = binarySearchInsertIndex(STATE.times, startTime);
+    const endIdx = binarySearchInsertIndex(STATE.times, endTime + 0.000001);
+    const visibleCount = Math.max(0, endIdx - startIdx);
+    if(!visibleCount){
+      
+      const labelCount = 5;
+      for(let k=0;k<labelCount;k++){
+        const ts = startTime + k*(endTime - startTime)/(labelCount-1 || 1);
+        const x = pad.l + plotW * (k/(labelCount-1 || 1));
+        ctx.save(); ctx.translate(x, pad.t + plotH + 18); ctx.rotate(-Math.PI/10); ctx.textAlign='right';
+        ctx.fillText(new Date(ts*1000).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}), 0,0); ctx.restore();
+      }
+    } else {
+      const maxXLabels = Math.min(6, Math.max(2, Math.floor(plotW / 90)));
+      const step = Math.max(1, Math.floor(visibleCount / maxXLabels));
+      for(let ii=startIdx; ii<endIdx; ii+=step){
+        const ts = STATE.times[ii];
+        const fracX = (ts - startTime) / (endTime - startTime);
+        const x = pad.l + plotW * fracX;
+        ctx.save(); ctx.translate(x, pad.t + plotH + 18); ctx.rotate(-Math.PI/6); ctx.textAlign='right';
+        ctx.fillText(new Date(ts*1000).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}), 0,0); ctx.restore();
+      }
+    }
+    
+    for(let si=0; si<DATASETS.length; si++){
+      if(!STATE.visible[si]) continue;
+      const d = DATASETS[si];
+      const times = STATE.times;
+      const arr = STATE.series[si];
+      if(!times.length) continue;
+      ctx.beginPath(); ctx.lineWidth = 2; ctx.strokeStyle = d.color; ctx.fillStyle = d.color;
+      let started=false;
+      for(let j=startIdx;j<endIdx;j++){
+        const t = times[j];
+        const v = arr[j];
+        if(t==null || v==null || isNaN(v)){ started=false; continue; }
+        if(t < startTime || t > endTime){ started=false; continue; }
+        const fracX = (t - startTime) / (endTime - startTime);
+        const x = pad.l + plotW * fracX;
+        const norm = (v - pr.min) / Math.max(0.000001, (pr.max - pr.min));
+        const y = pad.t + plotH * (1 - Math.max(0, Math.min(1, norm)));
+        if(!started){ ctx.moveTo(x,y); started=true; } else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+      
+      ctx.save(); ctx.fillStyle = d.color;
+      const visiblePts = Math.max(1, endIdx - startIdx);
+      const sampleStep = Math.max(1, Math.floor(visiblePts / 300));
+      for(let j=startIdx;j<endIdx;j+=sampleStep){
+        const v = arr[j];
+        if(v==null || isNaN(v)) continue;
+        const t = times[j];
+        const fracX = (t - startTime) / (endTime - startTime);
+        const x = pad.l + plotW * fracX;
+        const norm = (v - pr.min) / Math.max(0.000001, (pr.max - pr.min));
+        const y = pad.t + plotH * (1 - Math.max(0, Math.min(1, norm)));
+        ctx.beginPath(); ctx.arc(x,y,2.2,0,Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
+    }
+    
+    ctx.strokeStyle = '#e6e6e6'; ctx.lineWidth = 1; ctx.strokeRect(Math.round(pad.l)+0.5, Math.round(pad.t)+0.5, Math.round(plotW)-1, Math.round(plotH)-1);
+  }
+
+  let raf = null, lastFrameTime = 0, lastFullDraw = 0, dirty = true;
+  const frameInterval = 1000 / CONFIG.TARGET_FPS;
+  function anim(now){
+    if(!now) now = performance.now();
+    if(now - lastFrameTime >= frameInterval){
+      if(dirty || (now - lastFullDraw >= 1000)){
+        lastFrameTime = now - ((now - lastFrameTime) % frameInterval);
+        const nowSec = Date.now()/1000;
+        draw(nowSec);
+        dirty = false; lastFullDraw = now;
+      }
+    }
+    raf = requestAnimationFrame(anim);
+  }
+
+  function renderLegend(){
+    ui.legend.innerHTML = '';
+    DATASETS.forEach((d,i)=>{
+      const btn = document.createElement('button');
+      btn.className = 'legend-button ' + (d.css || '');
+      btn.style.background = d.color;
+      btn.textContent = d.label;
+      btn.dataset.i = i;
+      btn.setAttribute('aria-pressed', String(!!STATE.visible[i]));
+      btn.addEventListener('click', ()=>{
+        const idx = Number(btn.dataset.i);
+        STATE.visible[idx] = !STATE.visible[idx];
+        btn.classList.toggle('hidden', !STATE.visible[idx]);
+        btn.setAttribute('aria-pressed', String(!!STATE.visible[idx]));
+        dirty = true;
+      });
+      ui.legend.appendChild(btn);
+    });
+    fit();
+  }
+  renderLegend();
+
+  function wsUrl(){ if(window.HMI_WS_URL) return window.HMI_WS_URL; const proto = (location.protocol==='https:') ? 'wss:' : 'ws:'; return proto + '
+  function setConn(connected){ ui.conn.textContent = connected ? 'CONNECTED' : 'DISCONNECTED'; ui.conn.classList.toggle('connected', connected); ui.conn.classList.toggle('disconnected', !connected); }
+  function scheduleReconnect(){ STATE.reconnectAttempts++; const delay = Math.min(1000 * Math.pow(2, Math.min(STATE.reconnectAttempts,6)), 30000); if(STATE.reconnectTimer) clearTimeout(STATE.reconnectTimer); STATE.reconnectTimer = setTimeout(connectWS, delay); }
+  function connectWS(){
+    if(STATE.ws && (STATE.ws.readyState === WebSocket.OPEN || STATE.ws.readyState === WebSocket.CONNECTING)) return;
+    try { STATE.ws = new WebSocket(wsUrl()); } catch(e){ console.warn('WS create error', e); setConn(false); scheduleReconnect(); return; }
+    STATE.ws.onopen = ()=> { STATE.reconnectAttempts = 0; setConn(true); if(STATE.reconnectTimer){ clearTimeout(STATE.reconnectTimer); STATE.reconnectTimer = null; } };
+    STATE.ws.onmessage = (evt)=> { try { const j = JSON.parse(evt.data); 
+        pushPayload(j); } catch(e){ console.warn('Invalid message', e); } };
+    STATE.ws.onclose = ()=> { setConn(false); scheduleReconnect(); };
+    STATE.ws.onerror = (err)=> { console.error('WS error', err); };
+  }
+
+  ui.sendNoteBtn && ui.sendNoteBtn.addEventListener('click', ()=>{
+    const text = ui.noteText.value.trim(); const type = ui.noteType.value;
+    if(!text){ alert('Keterangan kosong'); return; }
+    const payload = { cmd:'note', type, text, time: new Date().toISOString() };
+    if(STATE.ws && STATE.ws.readyState === WebSocket.OPEN){
+      STATE.ws.send(JSON.stringify(payload));
+      ui.noteStatus.textContent = 'Laporan terkirim'; ui.noteStatus.className = 'note-status success';
+      ui.noteText.value = ''; setTimeout(()=>{ ui.noteStatus.textContent=''; ui.noteStatus.className=''; }, 3000);
+    } else {
+      ui.noteStatus.textContent = 'WS tidak terhubung'; ui.noteStatus.className = 'note-status error';
+      setTimeout(()=>{ ui.noteStatus.textContent=''; ui.noteStatus.className=''; }, 3000);
+    }
+  });
+
+  fit(); if(!raf) raf = requestAnimationFrame(anim);
+  setConn(false); connectWS();
+  window.__hmi = { pushPayload, STATE, CONFIG };
+  setTimeout(()=>{
+    if(!STATE.ws || STATE.ws.readyState !== WebSocket.OPEN){
+      const now = Date.now()/1000;
+      for(let k=0;k<120;k++){
+        const t = now - (119 - k) * 10; 
+        const s = {
+          boiler: { '1': 22.0 + Math.sin(k/8)*0.4, '2': 21.5 + Math.cos(k/7)*0.35, '3': 22.4 + Math.sin(k/10)*0.25 }
+        };
+        pushPayload(s, t);
+      }
+    }
+  }, 400);
+
+}();
+  </script>
+</body>
+
+</html>
