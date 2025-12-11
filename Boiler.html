@@ -693,7 +693,7 @@
   }
   renderLegend();
 
-  function wsUrl(){ if(window.HMI_WS_URL) return window.HMI_WS_URL; const proto = (location.protocol==='https:') ? 'wss:' : 'ws:'; return proto + '
+  function wsUrl(){ if(window.HMI_WS_URL) return window.HMI_WS_URL; const proto = (location.protocol==='https:') ? 'wss:' : 'ws:'; return proto + '//' + location.host + '/ws';
   function setConn(connected){ ui.conn.textContent = connected ? 'CONNECTED' : 'DISCONNECTED'; ui.conn.classList.toggle('connected', connected); ui.conn.classList.toggle('disconnected', !connected); }
   function scheduleReconnect(){ STATE.reconnectAttempts++; const delay = Math.min(1000 * Math.pow(2, Math.min(STATE.reconnectAttempts,6)), 30000); if(STATE.reconnectTimer) clearTimeout(STATE.reconnectTimer); STATE.reconnectTimer = setTimeout(connectWS, delay); }
   function connectWS(){
@@ -736,7 +736,7 @@
     }
   }, 400);
 
-}();
+};
   </script>
 </body>
 
