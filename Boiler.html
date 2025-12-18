@@ -474,10 +474,10 @@
 
     /* (Below: the rest of your original JS can remain unchanged) */
     (function () {
-      /* ---------- CONFIG: set X window = 30 minutes (1800s), Y fixed 0-6 ---------- */
+      /* ---------- CONFIG: set X window = 60 minutes (3600s), Y fixed 0-30 ---------- */
       const CONFIG = {
         MAX_POINTS: 400,
-        WINDOW_SECONDS: 30 * 60, // 30 minutes
+        WINDOW_SECONDS: 60 * 60, // 60 minutes
         WS_PATH: '/ws/mqtt',
         TARGET_FPS: 25
       };
@@ -604,9 +604,9 @@
         return lo;
       }
 
-      // FIX: Y axis static 0-6
+      // FIX: Y axis static 0-30
       function computePressureRange() {
-        return { min: 0, max: 6 };
+        return { min: 0, max: 30 };
       }
 
       function formatTimeLabel(ts) {
@@ -752,9 +752,9 @@
 
         pruneOldPoints(startTime);
 
-        // Y fixed 0..6
-        const pr = { min: 0, max: 6 };
-        ui.rangeText && (ui.rangeText.textContent = `Y: ${pr.min.toFixed(0)}–${pr.max.toFixed(0)} bar · X: 30 menit`);
+        // Y fixed 0..30
+        const pr = { min: 0, max: 30 };
+        ui.rangeText && (ui.rangeText.textContent = `Y: ${pr.min.toFixed(0)}–${pr.max.toFixed(0)} bar · X: 60 menit`);
 
         // Draw Y labels (5 rows)
         ctx.fillStyle = '#374151'; ctx.font = '12px ' + (navigator.userAgent.indexOf('Windows') >= 0 ? 'Arial' : 'system-ui');
