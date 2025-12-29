@@ -531,7 +531,7 @@
     (function () {
 
       const CONFIG = {
-        MAX_POINTS: 400,
+        MAX_POINTS: 1000,
         WINDOW_SECONDS: 60 * 60, // 60 minutes
         WS_PATH: '/ws/mqtt',
         TARGET_FPS: 25,
@@ -811,7 +811,20 @@
         });
 
         const idx = binarySearchInsertIndex(STATE.times, ts);
-        insertAt(idx, ts, label, values);
+
+        // Merge if timestamp exists, otherwise insert
+        if (idx < STATE.times.length && Math.abs(STATE.times[idx] - ts) < 0.001) {
+          DATASETS.forEach((d, i) => {
+            const raw = getNested(payload, d.field);
+            if (raw != null) {
+              let v = (typeof raw === 'number') ? raw : Number(raw);
+              if (Number.isFinite(v)) STATE.series[i][idx] = v;
+            }
+          });
+        } else {
+          insertAt(idx, ts, label, values);
+        }
+
         pruneOldPoints(ts - CONFIG.WINDOW_SECONDS);
 
 
@@ -951,33 +964,55 @@
           const arr = STATE.series[si];
           if (!times.length) continue;
 
-          ctx.beginPath(); ctx.lineWidth = 2; ctx.strokeStyle = d.color; ctx.fillStyle = d.color;
-          let started = false;
+          ctx.beginPath();
+          ctx.lineWidth = 2.5; // Slightly thicker for HMI visibility
+          ctx.strokeStyle = d.color;
+          ctx.fillStyle = d.color;
+
+          let lastValidT = -1;
+          const gapThreshold = 3600; // 1 hour - ensures lines always connect within the visible window
+
           for (let j = startIdx; j < endIdx; j++) {
             const t = times[j];
             const v = arr[j];
-            if (t == null || v == null || isNaN(v)) { started = false; continue; }
-            if (t < startTime || t > endTime) { started = false; continue; }
+
+            // Skip invalid values but don't necessarily break the line yet
+            if (t == null || v == null || isNaN(v)) continue;
+            if (t < startTime || t > endTime) continue;
+
             const fracX = (t - startTime) / (endTime - startTime);
             const x = pad.l + plotW * fracX;
             const norm = (v - pr.min) / Math.max(0.000001, (pr.max - pr.min));
             const y = pad.t + plotH * (1 - Math.max(0, Math.min(1, norm)));
-            if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+
+            // Break line if gap is too large
+            const isGap = (lastValidT !== -1 && (t - lastValidT) > gapThreshold);
+
+            if (lastValidT === -1 || isGap) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+            lastValidT = t;
           }
           ctx.stroke();
 
-          ctx.save(); ctx.fillStyle = d.color;
+          ctx.save();
+          ctx.fillStyle = d.color;
           let visiblePts = Math.max(1, endIdx - startIdx);
           const sampling = Math.max(1, Math.floor(visiblePts / 300));
           for (let j = startIdx; j < endIdx; j += sampling) {
             const t = times[j];
             const v = arr[j];
             if (t == null || v == null || isNaN(v)) continue;
+            if (t < startTime || t > endTime) continue; // Boundary check for markers too
             const fracX = (t - startTime) / (endTime - startTime);
             const x = pad.l + plotW * fracX;
             const norm = (v - pr.min) / Math.max(0.000001, (pr.max - pr.min));
             const y = pad.t + plotH * (1 - Math.max(0, Math.min(1, norm)));
-            ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x, y, 2.0, 0, Math.PI * 2); // Radius 2.0 (slightly reduced)
+            ctx.fill();
           }
           ctx.restore();
         }
