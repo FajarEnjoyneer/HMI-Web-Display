@@ -758,10 +758,18 @@
       function pushPayload(payload, tsInput) {
         let ts = null;
         if (typeof tsInput === 'number' && isFinite(tsInput)) ts = tsInput;
-        else if (payload && typeof payload.ts === 'number' && isFinite(payload.ts)) ts = payload.ts;
-        else if (payload && payload.time) {
-          const parsed = Date.parse(payload.time);
-          if (!isNaN(parsed)) ts = parsed / 1000;
+        else if (payload) {
+          // Robust check for InfluxDB/Node-RED timestamp fields
+          if (typeof payload.ts === 'number' && isFinite(payload.ts)) ts = payload.ts;
+          else if (typeof payload.timestamp === 'number' && isFinite(payload.timestamp)) ts = payload.timestamp;
+          else {
+            // Try standard string formats
+            const tStr = payload.time || payload._time || payload.timestamp;
+            if (tStr) {
+              const parsed = Date.parse(tStr);
+              if (!isNaN(parsed)) ts = parsed / 1000;
+            }
+          }
         }
         if (ts == null || !isFinite(ts)) ts = Date.now() / 1000;
 
