@@ -85,7 +85,8 @@
       transform-origin: top center;
       box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
       border: 1px solid var(--border-color);
-      overflow: hidden;
+      /* overflow: hidden; */
+      /* Remove clipping for HMI safety */
     }
 
     header {
@@ -139,9 +140,11 @@
       background: #fff;
       border: 1px solid var(--border-color);
       border-radius: 10px;
-      padding: 5px;
+      padding: 4px;
+      /* Reduced */
       text-align: center;
-      font-size: 15px;
+      font-size: 14px;
+      /* Reduced */
       box-sizing: border-box;
     }
 
@@ -175,10 +178,12 @@
       flex: 1 1 auto;
       background: var(--card);
       border-radius: 10px;
-      padding: 0px;
+      padding: 6px;
+      /* Reduced */
       box-sizing: border-box;
       position: relative;
-      overflow: hidden;
+      /* overflow: hidden; */
+      /* Remove clipping for HMI safety */
     }
 
     .chart-header {
@@ -235,11 +240,32 @@
       outline-offset: 3px;
     }
 
+    .c-boiler1 {
+      background: #ff1e1e;
+    }
+
+    .c-boiler2 {
+      background: #f39c12;
+    }
+
+    .c-boiler3 {
+      background: #ffd400;
+      color: #111;
+    }
+
+    .update-time {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
     .chart-canvas {
       position: relative;
       width: 100%;
       height: 100%;
-      min-height: 270px;
+      min-height: 150px;
+      /* Reduced from 270px */
       display: block;
       flex: 1 1 auto;
       z-index: 1;
@@ -370,23 +396,30 @@
 
       <div class="status-row">
         <div class="status-box">
-          <strong id="ds-label-boi1">Boiler 1</strong>
-          <div id="ds-pressure-boi1" class="value">Pressure: -- bar</div>
+          <strong id="ds-label-0">Boiler 1</strong>
+          <div id="ds-pressure-0" class="value">Pressure: -- bar</div>
+          <div id="ds-time-0" class="update-time">Update: --:--:--</div>
         </div>
 
         <div class="status-box">
-          <strong id="ds-label-boi2">Boiler 2</strong>
-          <div id="ds-pressure-boi2" class="value">Pressure: -- bar</div>
+          <strong id="ds-label-1">Boiler 2</strong>
+          <div id="ds-pressure-1" class="value">Pressure: -- bar</div>
+          <div id="ds-time-1" class="update-time">Update: --:--:--</div>
         </div>
 
         <div class="status-box">
-          <strong id="ds-label-boi3">Boiler 3</strong>
-          <div id="ds-pressure-boi3" class="value">Pressure: -- bar</div>
+          <strong id="ds-label-2">Boiler 3</strong>
+          <div id="ds-pressure-2" class="value">Pressure: -- bar</div>
+          <div id="ds-time-2" class="update-time">Update: --:--:--</div>
         </div>
       </div>
 
       <div class="chart-area" aria-label="Chart area">
         <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Pressure Trends (60 min)</div>
+            <div id="rangeText" class="range-text">Range: 0-30 bar</div>
+          </div>
           <div id="legendButtons" class="legend-container" role="toolbar" aria-label="Chart Legend"></div>
 
           <div class="chart-canvas" aria-hidden="false">
@@ -483,9 +516,9 @@
       };
 
       const DATASETS = [
-        { label: 'Boiler 1', field: 'boiler.1', color: '#0b8b10', id: 'ds-pressure-boi1', css: 'c-boi1', a11yId: 'a11y-boi1', a11yTimeId: 'a11y-boi1-time' },
-        { label: 'Boiler 2', field: 'boiler.2', color: '#004bff', id: 'ds-pressure-boi2', css: 'c-boi2', a11yId: 'a11y-boi2', a11yTimeId: 'a11y-boi2-time' },
-        { label: 'Boiler 3', field: 'boiler.3', color: '#1fa3a3', id: 'ds-pressure-boi3', css: 'c-boi3', a11yId: 'a11y-boi3', a11yTimeId: 'a11y-boi3-time' }
+        { label: 'Boiler 1', field: 'boiler.1', color: '#ff1e1e', id: 'ds-pressure-0', timeId: 'ds-time-0', css: 'c-boiler1', a11yId: 'a11y-boi1', a11yTimeId: 'a11y-boi1-time' },
+        { label: 'Boiler 2', field: 'boiler.2', color: '#f39c12', id: 'ds-pressure-1', timeId: 'ds-time-1', css: 'c-boiler2', a11yId: 'a11y-boi2', a11yTimeId: 'a11y-boi2-time' },
+        { label: 'Boiler 3', field: 'boiler.3', color: '#ffd400', id: 'ds-pressure-2', timeId: 'ds-time-2', css: 'c-boiler3', a11yId: 'a11y-boi3', a11yTimeId: 'a11y-boi3-time' }
       ];
 
       const STATE = {
@@ -524,6 +557,12 @@
               if (typeof v === 'number') { last = v; break; }
             }
             ui.dsEls[i].textContent = last == null ? 'Pressure: --' : 'Pressure: ' + Number(last).toFixed(2) + ' bar';
+
+            // Update IoT timestamp
+            const tsEl = document.getElementById(d.timeId);
+            if (tsEl) {
+              tsEl.textContent = 'Update: ' + formatTimeLabel(lastTs);
+            }
           }
         });
 
@@ -574,16 +613,19 @@
       function fit() {
         if (!canvas) return;
         const container = canvas.parentElement;
-        const rect = container.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-        const w = Math.max(1, Math.round(rect.width * dpr));
-        const h = Math.max(1, Math.round(rect.height * dpr));
-        if (canvas.width !== w || canvas.height !== h || lastViewport.dpr !== dpr || lastViewport.w !== rect.width || lastViewport.h !== rect.height) {
+        // Use clientWidth/clientHeight to get the layout size without scale transformation interference
+        const wLayout = container.clientWidth;
+        const hLayout = container.clientHeight;
+        const w = Math.max(1, Math.round(wLayout * dpr));
+        const h = Math.max(1, Math.round(hLayout * dpr));
+
+        if (canvas.width !== w || canvas.height !== h || lastViewport.dpr !== dpr || lastViewport.w !== wLayout || lastViewport.h !== hLayout) {
           canvas.width = w; canvas.height = h;
-          canvas.style.width = rect.width + 'px';
-          canvas.style.height = rect.height + 'px';
+          canvas.style.width = wLayout + 'px';
+          canvas.style.height = hLayout + 'px';
           if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          lastViewport = { w: rect.width, h: rect.height, dpr };
+          lastViewport = { w: wLayout, h: hLayout, dpr };
           buildGridCache();
         }
       }
@@ -613,12 +655,11 @@
       function buildGridCache() {
         if (!canvas) return;
         const container = canvas.parentElement;
-        const rect = container.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-        const cssW = rect.width, cssH = rect.height;
+        const cssW = container.clientWidth, cssH = container.clientHeight;
         const pixelW = Math.max(1, Math.round(cssW * dpr));
         const pixelH = Math.max(1, Math.round(cssH * dpr));
-        const pad = { l: 68, r: 10, t: 12, b: 80 };
+        const pad = { l: 65, r: 10, t: 15, b: 55 }; // Reduced bottom padding significantly
         const yRows = 5, xCols = 6;
 
         if (gridCache && lastViewport.w === cssW && lastViewport.h === cssH && lastViewport.dpr === dpr) return;
@@ -757,15 +798,15 @@
       function draw(displayNowSec) {
         if (!ctx) return;
         fit();
-        const containerRect = canvas.parentElement.getBoundingClientRect();
-        const rect = { width: containerRect.width, height: containerRect.height };
-        const pad = { l: 68, r: 10, t: 12, b: 80 };
-        const plotW = rect.width - pad.l - pad.r;
-        const plotH = rect.height - pad.t - pad.b;
+        const cssW = canvas.parentElement.clientWidth;
+        const cssH = canvas.parentElement.clientHeight;
+        const pad = { l: 65, r: 10, t: 15, b: 55 }; // Same reduction
+        const plotW = cssW - pad.l - pad.r;
+        const plotH = cssH - pad.t - pad.b;
 
-        ctx.clearRect(0, 0, rect.width, rect.height);
+        ctx.clearRect(0, 0, cssW, cssH);
         if (gridCache) {
-          ctx.drawImage(gridCache, 0, 0, rect.width, rect.height);
+          ctx.drawImage(gridCache, 0, 0, cssW, cssH);
         } else {
           ctx.fillStyle = '#fff';
           ctx.fillRect(pad.l - 1, pad.t - 1, plotW + 2, plotH + 2);
@@ -816,23 +857,28 @@
         const endIdx = binarySearchInsertIndex(STATE.times, endTime + 0.000001);
         const visibleCount = Math.max(0, endIdx - startIdx);
 
-        ctx.fillStyle = '#6b7280';
-        ctx.font = '12px system-ui';
-        const bottomExtra = 28;
+        const labelFont = 'bold 12px Arial, sans-serif'; // Bolder
+        const labelColor = '#000'; // Pure black for max contrast
+        ctx.font = labelFont;
+        ctx.fillStyle = labelColor;
+        const bottomOffset = 18;
 
         if (!visibleCount) {
-          const approxLabelWidth = 90;
-          const maxLabelsBySpace = Math.max(2, Math.floor(plotW / approxLabelWidth));
-          const labelCount = Math.min(6, maxLabelsBySpace);
+          // Fallback labels when no data is present
+          const labelCount = 6;
           for (let k = 0; k < labelCount; k++) {
             const frac = k / Math.max(1, labelCount - 1);
             const ts = startTime + frac * (endTime - startTime);
             const x = pad.l + plotW * frac;
+            const y = pad.t + plotH + bottomOffset;
+
             ctx.save();
-            ctx.translate(x, pad.t + plotH + 18 + bottomExtra / 2);
-            ctx.rotate(-Math.PI / 10);
+            ctx.translate(x, y);
+            ctx.rotate(-Math.PI / 8);
             ctx.textAlign = 'right';
             ctx.textBaseline = 'middle';
+            ctx.fillStyle = labelColor;
+            ctx.font = labelFont;
             ctx.fillText(formatTimeLabel(ts), 0, 0);
             ctx.restore();
           }
@@ -849,14 +895,15 @@
             if (fracX < 0 || fracX > 1) continue;
 
             const x = pad.l + plotW * fracX;
-            const y = pad.t + plotH + 18 + bottomExtra / 2;
+            const y = pad.t + plotH + bottomOffset;
 
             ctx.save();
             ctx.translate(x, y);
-            ctx.rotate(-Math.PI / 6);
+            ctx.rotate(-Math.PI / 8);
             ctx.textAlign = 'right';
             ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#6b7280';
+            ctx.fillStyle = labelColor;
+            ctx.font = labelFont;
             ctx.fillText(formatTimeLabel(t), 0, 0);
             ctx.restore();
           }
