@@ -209,6 +209,47 @@
       margin-bottom: 2px;
     }
 
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(0,0,0,0.04);
+      background: transparent;
+    }
+
+    .chart-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .chart-controls button {
+      background: rgba(0,0,0,0.06);
+      color: #111827;
+      padding: 6px 8px;
+      border-radius: 8px;
+      box-shadow: none;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(17,24,39,0.95);
+      color: white;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+      z-index: 40;
+      transform: translate(-50%, -110%);
+      white-space: nowrap;
+      display: none;
+    }
+
     .legend-button {
       border: none;
       border-radius: 999px;
@@ -387,11 +428,21 @@
 
       <div class="chart-area" aria-label="Chart area">
         <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Tekanan Boiler</div>
+            <div class="chart-controls">
+              <div id="rangeText" class="range-text" aria-hidden="false">Y: 0–30 bar · X: 60 menit</div>
+              <button id="btnAutoY" type="button" aria-pressed="true" title="Toggle autoscale">Auto Y</button>
+              <button id="btnDownload" type="button" title="Download PNG">Download</button>
+            </div>
+          </div>
+
           <div id="legendButtons" class="legend-container" role="toolbar" aria-label="Chart Legend"></div>
 
-          <div class="chart-canvas" aria-hidden="false">
+            <div class="chart-canvas" aria-hidden="false">
             <!-- canvas set draggable="false" for extra safety -->
             <canvas id="mainChart" aria-label="Grafik tekanan" draggable="false"></canvas>
+              <div id="chartTooltip" class="tooltip" role="status" aria-live="polite"></div>
           </div>
         </div>
       </div>
@@ -497,58 +548,9 @@
         reconnectTimer: null,
         reconnectAttempts: 0
       };
-
-      function saveState() {
-        try {
-          const data = {
-            times: STATE.times,
-            series: STATE.series,
-            labels: STATE.labels
-          };
-          localStorage.setItem('hmi_boiler_data', JSON.stringify(data));
-        } catch (e) {
-          console.warn('Failed to save state', e);
-        }
-      }
-
-      function updateStatusBoxes() {
-        if (!STATE.times.length) return;
-        const lastTs = STATE.times[STATE.times.length - 1];
-
-        DATASETS.forEach((d, i) => {
-          if (d.id && ui.dsEls[i]) {
-            const arr = STATE.series[i];
-            let last = null;
-            for (let k = arr.length - 1; k >= 0; k--) {
-              const v = arr[k];
-              if (typeof v === 'number') { last = v; break; }
-            }
-            ui.dsEls[i].textContent = last == null ? 'Pressure: --' : 'Pressure: ' + Number(last).toFixed(2) + ' bar';
-          }
-        });
-
-        updateA11ySummary(lastTs);
-      }
-
-      function loadState() {
-        try {
-          const saved = localStorage.getItem('hmi_boiler_data');
-          if (saved) {
-            const data = JSON.parse(saved);
-            if (data.times && data.series && data.labels) {
-              STATE.times = data.times;
-              STATE.series = data.series;
-              STATE.labels = data.labels;
-              // Ensure we prune on load just in case window shifted
-              pruneOldPoints(Date.now() / 1000 - CONFIG.WINDOW_SECONDS);
-              updateStatusBoxes();
-              dirty = true;
-            }
-          }
-        } catch (e) {
-          console.warn('Failed to load state', e);
-        }
-      }
+      // runtime flags
+      STATE.autoY = true; // autoscale Y axis when true
+      STATE.simInterval = null;
 
       const ui = {
         conn: document.getElementById('connection-status'),
@@ -563,6 +565,10 @@
         chartSummary: document.getElementById('chartSummary'),
         a11yIds: DATASETS.map(d => ({ val: document.getElementById(d.a11yId), time: document.getElementById(d.a11yTimeId) }))
       };
+
+      ui.btnAutoY = document.getElementById('btnAutoY');
+      ui.btnDownload = document.getElementById('btnDownload');
+      ui.tooltip = document.getElementById('chartTooltip');
 
       const canvas = ui.canvas;
       const ctx = canvas.getContext && canvas.getContext('2d');
@@ -656,9 +662,37 @@
         return lo;
       }
 
-      // FIX: Y axis static 0-30
-      function computePressureRange() {
-        return { min: 0, max: 30 };
+      function computePressureRange(startTime, endTime) {
+        // If autoscale disabled, keep fixed 0..30
+        if (!STATE.autoY) return { min: 0, max: 30 };
+
+        // find min/max across visible series within [startTime,endTime]
+        let min = Infinity, max = -Infinity; let found = false;
+        for (let si = 0; si < DATASETS.length; si++) {
+          if (!STATE.visible[si]) continue;
+          const arr = STATE.series[si];
+          const times = STATE.times;
+          for (let i = 0; i < times.length; i++) {
+            const t = times[i];
+            if (t < startTime || t > endTime) continue;
+            const v = arr[i];
+            if (typeof v === 'number' && isFinite(v)) {
+              found = true;
+              if (v < min) min = v;
+              if (v > max) max = v;
+            }
+          }
+        }
+        if (!found) return { min: 0, max: 30 };
+
+        // add padding
+        const span = Math.max(0.001, (max - min));
+        const pad = Math.max(0.5, span * 0.12);
+        let pmin = Math.max(0, min - pad);
+        let pmax = Math.max(pmin + 0.5, max + pad);
+        // clamp to reasonable limits
+        pmax = Math.min(pmax, 1000);
+        return { min: pmin, max: pmax };
       }
 
       function formatTimeLabel(ts) {
@@ -747,10 +781,20 @@
         insertAt(idx, ts, label, values);
         pruneOldPoints(ts - CONFIG.WINDOW_SECONDS);
 
-        // update small status boxes and accessibility summary
-        updateStatusBoxes();
+        // update small status boxes
+        DATASETS.forEach((d, i) => {
+          if (d.id && ui.dsEls[i]) {
+            const arr = STATE.series[i];
+            let last = null;
+            for (let k = arr.length - 1; k >= 0; k--) {
+              const v = arr[k];
+              if (typeof v === 'number') { last = v; break; }
+            }
+            ui.dsEls[i].textContent = last == null ? 'Pressure: --' : 'Pressure: ' + Number(last).toFixed(2) + ' bar';
+          }
+        });
 
-        saveState();
+        updateA11ySummary(ts);
         dirty = true;
       }
 
@@ -794,9 +838,9 @@
 
         pruneOldPoints(startTime);
 
-        // Y fixed 0..30
-        const pr = { min: 0, max: 30 };
-        ui.rangeText && (ui.rangeText.textContent = `Y: ${pr.min.toFixed(0)}–${pr.max.toFixed(0)} bar · X: 60 menit`);
+  // compute Y range (auto or fixed)
+  const pr = computePressureRange(startTime, endTime);
+  if (ui.rangeText) ui.rangeText.textContent = (STATE.autoY ? 'Auto · ' : 'Fixed · ') + `Y: ${pr.min.toFixed(2)}–${pr.max.toFixed(2)} bar · X: ${Math.round(CONFIG.WINDOW_SECONDS/60)} menit`;
 
         // Draw Y labels (5 rows)
         ctx.fillStyle = '#374151'; ctx.font = '12px ' + (navigator.userAgent.indexOf('Windows') >= 0 ? 'Arial' : 'system-ui');
@@ -837,27 +881,19 @@
             ctx.restore();
           }
         } else {
-          // Time-based labeling for better spacing
-          const timeSpan = endTime - startTime;
-          const labelInterval = 600; // 10 minutes (600 seconds)
-
-          // Find first label time (aligned to 10 minutes)
-          let firstLabelTime = Math.ceil(startTime / labelInterval) * labelInterval;
-
-          for (let t = firstLabelTime; t <= endTime; t += labelInterval) {
-            const fracX = (t - startTime) / timeSpan;
-            if (fracX < 0 || fracX > 1) continue;
-
+          const maxXLabels = Math.min(6, Math.max(2, Math.floor(plotW / 90)));
+          const step = Math.max(1, Math.floor(visibleCount / maxXLabels));
+          for (let ii = startIdx; ii < endIdx; ii += step) {
+            const ts = STATE.times[ii];
+            const fracX = (ts - startTime) / (endTime - startTime);
             const x = pad.l + plotW * fracX;
             const y = pad.t + plotH + 18 + bottomExtra / 2;
-
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(-Math.PI / 6);
             ctx.textAlign = 'right';
             ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#6b7280';
-            ctx.fillText(formatTimeLabel(t), 0, 0);
+            ctx.fillText(formatTimeLabel(ts), 0, 0);
             ctx.restore();
           }
         }
@@ -950,6 +986,111 @@
       }
       renderLegend();
 
+      // --- Tooltip & controls ---
+      function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+      function canvasToTime(clientX) {
+        const container = canvas.parentElement;
+        const rect = container.getBoundingClientRect();
+        const pad = { l: 68, r: 10, t: 12, b: 80 };
+        const plotW = rect.width - pad.l - pad.r;
+        const relX = clamp(clientX - (rect.left + pad.l), 0, plotW);
+        // derive current start/end used by draw (approx)
+        const nowSec = Date.now() / 1000;
+        let endTime = nowSec;
+        let startTime = endTime - CONFIG.WINDOW_SECONDS;
+        if (STATE.times.length > 0) {
+          const first = STATE.times[0];
+          const last = STATE.times[STATE.times.length - 1];
+          const dataSpan = last - first;
+          if (dataSpan < CONFIG.WINDOW_SECONDS) { startTime = first; endTime = startTime + CONFIG.WINDOW_SECONDS; }
+          else { endTime = Math.max(endTime, last); startTime = endTime - CONFIG.WINDOW_SECONDS; }
+        }
+        const frac = plotW <= 0 ? 0 : (relX / plotW);
+        return { t: startTime + frac * (endTime - startTime), x: rect.left + pad.l + relX };
+      }
+
+      function findNearestIndexForTime(t) {
+        if (!STATE.times.length) return -1;
+        let idx = binarySearchInsertIndex(STATE.times, t);
+        if (idx > 0) idx = idx - 1;
+        if (idx < 0) idx = 0;
+        return idx;
+      }
+
+      function showTooltipAt(clientX, html) {
+        if (!ui.tooltip) return;
+        ui.tooltip.innerHTML = html;
+        ui.tooltip.style.display = 'block';
+        ui.tooltip.style.left = clientX + 'px';
+      }
+
+      function hideTooltip() { if (ui.tooltip) ui.tooltip.style.display = 'none'; }
+
+      canvas && canvas.addEventListener('mousemove', (ev) => {
+        const info = canvasToTime(ev.clientX);
+        const idx = findNearestIndexForTime(info.t);
+        if (idx < 0 || idx >= STATE.times.length) { hideTooltip(); return; }
+        const ts = STATE.times[idx];
+        const tStr = formatTimeLabel(ts);
+        let parts = [`<strong>${tStr}</strong>`];
+        DATASETS.forEach((d, i) => {
+          if (!STATE.visible[i]) return;
+          const v = STATE.series[i][idx];
+          const color = d.color || '#ddd';
+          parts.push(`<span style="color:${color};font-weight:800;margin-left:8px">${d.label}:</span> <span style="margin-left:4px">${(v==null)?'—':Number(v).toFixed(2)+' bar'}</span>`);
+        });
+        showTooltipAt(info.x, parts.join('<br>'));
+      });
+      canvas && canvas.addEventListener('mouseleave', () => hideTooltip());
+
+      // autoscale toggle
+      if (ui.btnAutoY) {
+        ui.btnAutoY.addEventListener('click', () => {
+          STATE.autoY = !STATE.autoY;
+          ui.btnAutoY.setAttribute('aria-pressed', String(!!STATE.autoY));
+          ui.btnAutoY.textContent = STATE.autoY ? 'Auto Y' : 'Fixed Y';
+          dirty = true;
+        });
+        ui.btnAutoY.setAttribute('aria-pressed', String(!!STATE.autoY));
+        ui.btnAutoY.textContent = STATE.autoY ? 'Auto Y' : 'Fixed Y';
+      }
+
+      // download PNG
+      if (ui.btnDownload) {
+        ui.btnDownload.addEventListener('click', () => {
+          try {
+            const data = canvas.toDataURL('image/png');
+            const a = document.createElement('a'); a.href = data; a.download = 'chart.png'; document.body.appendChild(a); a.click(); a.remove();
+          } catch (e) { console.warn('Download failed', e); }
+        });
+      }
+
+      // If opened as file://, provide a simple local simulation for testing
+      function startLocalSim() {
+        if (STATE.simInterval) return;
+        setSimulating();
+        let t0 = Date.now() / 1000;
+        STATE.simInterval = setInterval(() => {
+          const ts = Date.now() / 1000;
+          // synthetic values: slow sine + noise per boiler
+          const values = DATASETS.map((d, i) => {
+            const base = 10 + Math.sin((ts - t0) / 60 * (0.5 + i * 0.2)) * (3 + i);
+            return Math.max(0, base + (Math.random() - 0.5) * 0.5);
+          });
+          const payload = {};
+          DATASETS.forEach((d, i) => { // attach to nested path like boiler.1
+            const parts = d.field.split('.');
+            if (!payload[parts[0]]) payload[parts[0]] = {};
+            payload[parts[0]][parts[1]] = Number(values[i].toFixed(3));
+          });
+          payload.ts = ts;
+          pushPayload(payload, ts);
+        }, 1500);
+      }
+
+      if (location.protocol === 'file:') startLocalSim();
+
       function wsUrl() { if (window.HMI_WS_URL) return window.HMI_WS_URL; const proto = (location.protocol === 'https:') ? 'wss:' : 'ws:'; return proto + '//' + location.host + CONFIG.WS_PATH; }
       function setConn(connected) { ui.conn.textContent = connected ? 'CONNECTED' : 'DISCONNECTED'; ui.conn.classList.toggle('connected', connected); ui.conn.classList.toggle('disconnected', !connected); ui.conn.classList.remove('simulating'); }
       function setSimulating() { ui.conn.textContent = 'SIMULATING'; ui.conn.classList.add('simulating'); ui.conn.classList.remove('connected'); ui.conn.classList.remove('disconnected'); }
@@ -989,15 +1130,15 @@
       window.__hmi = { pushPayload, STATE, CONFIG };
 
       function cleanup() {
-        try { if (raf) cancelAnimationFrame(raf); } catch (e) { }
-        try { if (STATE.ws) STATE.ws.close(); } catch (e) { }
-        try { if (STATE.reconnectTimer) clearTimeout(STATE.reconnectTimer); } catch (e) { }
-        try { if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; } } catch (e) { }
-        try { window.removeEventListener('resize', applyScale); window.removeEventListener('hmi-resize', fit); window.removeEventListener('resize', fit); } catch (e) { }
+        try { if (raf) cancelAnimationFrame(raf); } catch (e) {}
+        try { if (STATE.ws) STATE.ws.close(); } catch (e) {}
+        try { if (STATE.reconnectTimer) clearTimeout(STATE.reconnectTimer); } catch (e) {}
+        try { if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; } } catch (e) {}
+        try { if (STATE.simInterval) { clearInterval(STATE.simInterval); STATE.simInterval = null; } } catch (e) {}
+        try { window.removeEventListener('resize', applyScale); window.removeEventListener('hmi-resize', fit); window.removeEventListener('resize', fit); } catch (e) {}
       }
       window.addEventListener('beforeunload', cleanup);
 
-      loadState();
       fit();
       if (!raf) raf = requestAnimationFrame(anim);
 
