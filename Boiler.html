@@ -284,11 +284,11 @@
 
     .note {
       display: flex;
-      gap: 12px;
-      align-items: flex-start;
+      gap: 10px;
+      align-items: stretch;
       background: #f6f6f7;
-      border-radius: 10px;
-      padding: 12px;
+      border-radius: 8px;
+      padding: 6px 10px;
       border: 1px solid #e6e6e6;
       box-sizing: border-box;
       flex: 0 0 auto;
@@ -297,14 +297,24 @@
     }
 
     .note-left {
-      width: 65%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
     .note-right {
-      width: 35%;
+      width: 140px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .note label {
+      font-size: 11px;
+      font-weight: 740;
+      color: var(--muted);
     }
 
     select,
@@ -328,11 +338,11 @@
       background: var(--blue);
       color: #fff;
       border: none;
-      padding: 10px 14px;
-      border-radius: 8px;
+      padding: 8px 12px;
+      border-radius: 6px;
       cursor: pointer;
       font-weight: 800;
-      font-size: 15px;
+      font-size: 14px;
     }
 
     .note-status {
@@ -431,20 +441,21 @@
 
       <div class="note" role="region" aria-label="Laporan Gangguan / Catatan">
         <div class="note-left">
-          <label for="noteType">Laporan Gangguan / Catatan</label>
-          <select id="noteType" aria-label="Tipe laporan">
-            <option value="operational">Operational hour</option>
-            <option value="maintenance">Maintenance</option>
-            <option value="blades">Blades</option>
-          </select>
-          <label for="noteText" style="margin-top:8px;">Keterangan:</label>
-          <!-- textarea remains selectable and editable -->
-          <textarea id="noteText" rows="4" placeholder="Tulis catatan di sini..." aria-label="Keterangan"></textarea>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <label for="noteType" style="white-space:nowrap;">Laporan:</label>
+            <select id="noteType" style="padding:4px 8px; height:28px; font-size:12px;" aria-label="Tipe laporan">
+              <option value="operational">Operational hour</option>
+              <option value="maintenance">Maintenance</option>
+              <option value="blades">Blades</option>
+            </select>
+          </div>
+          <textarea id="noteText" rows="1" style="padding:4px 8px; font-size:12px; height:32px; min-height:32px;"
+            placeholder="Tulis catatan (opsional)..." aria-label="Keterangan"></textarea>
         </div>
         <div class="note-right">
-          <div style="font-weight:800;">Aksi</div>
-          <button id="sendNoteBtn" type="button" aria-label="Kirim Laporan">Kirim Laporan</button>
-          <div id="noteStatus" class="note-status" aria-live="polite"></div>
+          <button id="sendNoteBtn" type="button" style="height:100%;" aria-label="Kirim Laporan">Kirim Laporan</button>
+          <div id="noteStatus" class="note-status" style="position:absolute; right:10px; top:-18px;" aria-live="polite">
+          </div>
         </div>
       </div>
 
