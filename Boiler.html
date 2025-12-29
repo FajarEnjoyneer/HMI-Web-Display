@@ -876,7 +876,7 @@
 
         if (!visibleCount) {
           // Fallback labels when no data is present
-          const labelCount = 6;
+          const labelCount = 10;
           for (let k = 0; k < labelCount; k++) {
             const frac = k / Math.max(1, labelCount - 1);
             const ts = startTime + frac * (endTime - startTime);
@@ -896,9 +896,9 @@
         } else {
           // Time-based labeling for better spacing
           const timeSpan = endTime - startTime;
-          const labelInterval = 600; // 10 minutes (600 seconds)
+          const labelInterval = 120; // 5 minutes (300 seconds)
 
-          // Find first label time (aligned to 10 minutes)
+          // Find first label time (aligned to 5 minutes)
           let firstLabelTime = Math.ceil(startTime / labelInterval) * labelInterval;
 
           for (let t = firstLabelTime; t <= endTime; t += labelInterval) {
