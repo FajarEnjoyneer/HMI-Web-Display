@@ -85,8 +85,7 @@
       transform-origin: top center;
       box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
       border: 1px solid var(--border-color);
-      /* overflow: hidden; */
-      /* Remove clipping for HMI safety */
+
     }
 
     header {
@@ -141,10 +140,8 @@
       border: 1px solid var(--border-color);
       border-radius: 10px;
       padding: 4px;
-      /* Reduced */
       text-align: center;
       font-size: 14px;
-      /* Reduced */
       box-sizing: border-box;
     }
 
@@ -179,11 +176,8 @@
       background: var(--card);
       border-radius: 10px;
       padding: 6px;
-      /* Reduced */
       box-sizing: border-box;
       position: relative;
-      /* overflow: hidden; */
-      /* Remove clipping for HMI safety */
     }
 
     .chart-header {
@@ -265,7 +259,6 @@
       width: 100%;
       height: 100%;
       min-height: 150px;
-      /* Reduced from 270px */
       display: block;
       flex: 1 1 auto;
       z-index: 1;
@@ -276,8 +269,7 @@
       height: 100% !important;
       display: block;
       border-radius: 6px;
-      background: #fff;
-      /* make canvas non-draggable as extra safety */
+      /* background: #fff; */
       -webkit-user-drag: none;
 
     }
@@ -327,7 +319,6 @@
       box-sizing: border-box;
       font-size: 14px;
       font-family: var(--ui-font);
-      /* Ensure form controls remain selectable */
       -webkit-user-select: text !important;
       -moz-user-select: text !important;
       -ms-user-select: text !important;
@@ -426,14 +417,13 @@
 
       <div class="chart-area" aria-label="Chart area">
         <div class="chart-card">
-          <!-- <div class="chart-header">
+          <div class="chart-header">
             <div class="chart-title">Pressure Trends (60 min)</div>
             <div id="rangeText" class="range-text">Range: 0-30 bar</div>
-          </div> -->
+          </div>
           <div id="legendButtons" class="legend-container" role="toolbar" aria-label="Chart Legend"></div>
 
           <div class="chart-canvas" aria-hidden="false">
-            <!-- canvas set draggable="false" for extra safety -->
             <canvas id="mainChart" aria-label="Grafik tekanan" draggable="false"></canvas>
           </div>
         </div>
@@ -493,37 +483,29 @@
   </div>
 
   <script>
-    /* Prevent dragstart & selectstart for non-form elements.
-       Allow form controls (input/select/textarea) to behave normally.
-       This JS is defensive — CSS handles most cases, but JS prevents
-       cases where browsers still allow dragging or selection via events. */
     (function () {
       document.addEventListener('dragstart', function (e) {
-        // allow drag if target is a form control (rare) or has attribute draggable="true"
         if (e.target && (e.target.closest('input,textarea,select') || e.target.getAttribute('draggable') === 'true')) return;
         e.preventDefault();
       }, { passive: false });
 
       document.addEventListener('selectstart', function (e) {
-        // allow selection if inside input/textarea/select or explicitly allowed
         if (e.target && (e.target.closest('input,textarea,select') || e.target.closest('.allow-select'))) return;
         e.preventDefault();
       }, { passive: false });
 
-      // also prevent touch callout (long-press) on Android/iOS where CSS might not be enough
       document.addEventListener('touchstart', function (e) {
-        // no-op; keeping listener present avoids some long-press defaults on certain webviews
+        e.preventDefault();
       }, { passive: true });
     })();
 
-    /* (Below: the rest of your original JS can remain unchanged) */
     (function () {
-      /* ---------- CONFIG: set X window = 60 minutes (3600s), Y fixed 0-30 ---------- */
       const CONFIG = {
         MAX_POINTS: 400,
         WINDOW_SECONDS: 60 * 60, // 60 minutes
         WS_PATH: '/ws/mqtt',
-        TARGET_FPS: 25
+        TARGET_FPS: 25,
+        PAD: { l: 65, r: 10, t: 15, b: 55 }
       };
 
       const DATASETS = [
@@ -569,7 +551,7 @@
             }
             ui.dsEls[i].textContent = last == null ? 'Pressure: --' : 'Pressure: ' + Number(last).toFixed(2) + ' bar';
 
-            // Update IoT timestamp
+            // Update IoT 
             const tsEl = document.getElementById(d.timeId);
             if (tsEl) {
               tsEl.textContent = 'Update: ' + formatTimeLabel(lastTs);
@@ -589,7 +571,6 @@
               STATE.times = data.times;
               STATE.series = data.series;
               STATE.labels = data.labels;
-              // Ensure we prune on load just in case window shifted
               pruneOldPoints(Date.now() / 1000 - CONFIG.WINDOW_SECONDS);
               updateStatusBoxes();
               dirty = true;
@@ -625,7 +606,6 @@
         if (!canvas) return;
         const container = canvas.parentElement;
         const dpr = window.devicePixelRatio || 1;
-        // Use clientWidth/clientHeight to get the layout size without scale transformation interference
         const wLayout = container.clientWidth;
         const hLayout = container.clientHeight;
         const w = Math.max(1, Math.round(wLayout * dpr));
@@ -670,21 +650,23 @@
         const cssW = container.clientWidth, cssH = container.clientHeight;
         const pixelW = Math.max(1, Math.round(cssW * dpr));
         const pixelH = Math.max(1, Math.round(cssH * dpr));
-        const pad = { l: 65, r: 10, t: 15, b: 55 }; // Reduced bottom padding significantly
+        const pad = CONFIG.PAD;
         const yRows = 5, xCols = 6;
 
         if (gridCache && lastViewport.w === cssW && lastViewport.h === cssH && lastViewport.dpr === dpr) return;
 
         const c = document.createElement('canvas');
         c.width = pixelW; c.height = pixelH;
-        c.style.width = cssW + 'px'; c.style.height = cssH + 'px';
         const gctx = c.getContext('2d');
+
+        // Fill entire offscreen buffer with white to avoid compositing issues or transparent 'holes'
+        gctx.fillStyle = '#fff';
+        gctx.fillRect(0, 0, pixelW, pixelH);
+
         gctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
         const plotW = cssW - pad.l - pad.r;
         const plotH = cssH - pad.t - pad.b;
-        gctx.fillStyle = '#fff';
-        gctx.fillRect(pad.l - 1, pad.t - 1, plotW + 2, plotH + 2);
 
         gctx.strokeStyle = '#eef2f7'; gctx.lineWidth = 1;
         for (let r = 0; r <= yRows; r++) {
@@ -799,7 +781,6 @@
         insertAt(idx, ts, label, values);
         pruneOldPoints(ts - CONFIG.WINDOW_SECONDS);
 
-        // update small status boxes and accessibility summary
         updateStatusBoxes();
 
         saveState();
@@ -809,36 +790,39 @@
       function draw(displayNowSec) {
         if (!ctx) return;
         fit();
+        const dpr = window.devicePixelRatio || 1;
         const cssW = canvas.parentElement.clientWidth;
         const cssH = canvas.parentElement.clientHeight;
-        const pad = { l: 65, r: 10, t: 15, b: 55 }; // Same reduction
+        const pad = CONFIG.PAD;
         const plotW = cssW - pad.l - pad.r;
         const plotH = cssH - pad.t - pad.b;
 
-        ctx.clearRect(0, 0, cssW, cssH);
+        // Pixel-perfect clear and grid draw to avoid scaling ghosting/artifacts
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (gridCache) {
-          ctx.drawImage(gridCache, 0, 0, cssW, cssH);
+          ctx.drawImage(gridCache, 0, 0);
         } else {
           ctx.fillStyle = '#fff';
-          ctx.fillRect(pad.l - 1, pad.t - 1, plotW + 2, plotH + 2);
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
+        ctx.restore();
 
-        // default window
+        // High-level drawing with DPR transform
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
         let endTime = displayNowSec;
         let startTime = endTime - CONFIG.WINDOW_SECONDS;
 
-        // If we have data and the data span is less than window, anchor start at earliest data
         if (STATE.times.length > 0) {
           const first = STATE.times[0];
           const last = STATE.times[STATE.times.length - 1];
           const dataSpan = last - first;
           if (dataSpan < CONFIG.WINDOW_SECONDS) {
-            // put earliest data at left (startTime = first) and end = first + window
             startTime = first;
             endTime = startTime + CONFIG.WINDOW_SECONDS;
           } else {
-            // otherwise use rolling window to always show recent data up to endTime
-            // but ensure endTime >= last (so newest data is visible)
             endTime = Math.max(endTime, last);
             startTime = endTime - CONFIG.WINDOW_SECONDS;
           }
@@ -863,19 +847,18 @@
 
         ctx.save(); ctx.translate(14, pad.t + plotH / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.fillStyle = '#111827'; ctx.font = '13px system-ui'; ctx.fillText('Pressure (bar)', 0, -8); ctx.restore();
 
-        // X labels and visible indices using binary search
         const startIdx = binarySearchInsertIndex(STATE.times, startTime);
         const endIdx = binarySearchInsertIndex(STATE.times, endTime + 0.000001);
         const visibleCount = Math.max(0, endIdx - startIdx);
 
         const labelFont = 'bold 12px Arial, sans-serif'; // Bolder
-        const labelColor = '#000'; // Pure black for max contrast
+        const labelColor = '#000';
         ctx.font = labelFont;
         ctx.fillStyle = labelColor;
         const bottomOffset = 18;
 
         if (!visibleCount) {
-          // Fallback labels when no data is present
+
           const labelCount = 10;
           for (let k = 0; k < labelCount; k++) {
             const frac = k / Math.max(1, labelCount - 1);
@@ -894,11 +877,10 @@
             ctx.restore();
           }
         } else {
-          // Time-based labeling for better spacing
+
           const timeSpan = endTime - startTime;
           const labelInterval = 120; // 5 minutes (300 seconds)
 
-          // Find first label time (aligned to 5 minutes)
           let firstLabelTime = Math.ceil(startTime / labelInterval) * labelInterval;
 
           for (let t = firstLabelTime; t <= endTime; t += labelInterval) {

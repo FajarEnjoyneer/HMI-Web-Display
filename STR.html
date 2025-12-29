@@ -85,7 +85,8 @@
       transform-origin: top center;
       box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
       border: 1px solid var(--border-color);
-      overflow: hidden;
+
+
     }
 
     header {
@@ -139,9 +140,11 @@
       background: #fff;
       border: 1px solid var(--border-color);
       border-radius: 10px;
-      padding: 5px;
+      padding: 4px;
+
       text-align: center;
-      font-size: 15px;
+      font-size: 14px;
+
       box-sizing: border-box;
     }
 
@@ -175,10 +178,12 @@
       flex: 1 1 auto;
       background: var(--card);
       border-radius: 10px;
-      padding: 0px;
+      padding: 6px;
+
       box-sizing: border-box;
       position: relative;
-      overflow: hidden;
+
+
     }
 
     .chart-header {
@@ -235,11 +240,35 @@
       outline-offset: 3px;
     }
 
+    .c-bpv {
+      background: #8e44ad;
+    }
+
+    .c-ster5 {
+      background: #0b8b10;
+    }
+
+    .c-ster6 {
+      background: #004bff;
+    }
+
+    .c-ster7 {
+      background: #1fa3a3;
+    }
+
+    .update-time {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
     .chart-canvas {
       position: relative;
       width: 100%;
       height: 100%;
-      min-height: 270px;
+      min-height: 150px;
+
       display: block;
       flex: 1 1 auto;
       z-index: 1;
@@ -250,19 +279,19 @@
       height: 100% !important;
       display: block;
       border-radius: 6px;
-      background: #fff;
-      /* make canvas non-draggable as extra safety */
+      /* background: #fff; */
+
       -webkit-user-drag: none;
-      /* user-drag: none; */
+
     }
 
     .note {
       display: flex;
-      gap: 12px;
-      align-items: flex-start;
+      gap: 10px;
+      align-items: stretch;
       background: #f6f6f7;
-      border-radius: 10px;
-      padding: 12px;
+      border-radius: 8px;
+      padding: 6px 10px;
       border: 1px solid #e6e6e6;
       box-sizing: border-box;
       flex: 0 0 auto;
@@ -271,14 +300,24 @@
     }
 
     .note-left {
-      width: 65%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
     .note-right {
-      width: 35%;
+      width: 140px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .note label {
+      font-size: 11px;
+      font-weight: 740;
+      color: var(--muted);
     }
 
     select,
@@ -291,7 +330,7 @@
       box-sizing: border-box;
       font-size: 14px;
       font-family: var(--ui-font);
-      /* Ensure form controls remain selectable */
+
       -webkit-user-select: text !important;
       -moz-user-select: text !important;
       -ms-user-select: text !important;
@@ -302,11 +341,11 @@
       background: var(--blue);
       color: #fff;
       border: none;
-      padding: 10px 14px;
-      border-radius: 8px;
+      padding: 8px 12px;
+      border-radius: 6px;
       cursor: pointer;
       font-weight: 800;
-      font-size: 15px;
+      font-size: 14px;
     }
 
     .note-status {
@@ -372,26 +411,34 @@
         <div class="status-box">
           <strong id="ds-label-bpv">BPV</strong>
           <div id="ds-pressure-bpv" class="value">Pressure: -- bar</div>
+          <div id="ds-time-bpv" class="update-time">Update: --:--:--</div>
         </div>
 
         <div class="status-box">
           <strong id="ds-label-str5">Sterilizer 5</strong>
           <div id="ds-pressure-str5" class="value">Pressure: -- bar</div>
+          <div id="ds-time-str5" class="update-time">Update: --:--:--</div>
         </div>
 
         <div class="status-box">
           <strong id="ds-label-str6">Sterilizer 6</strong>
           <div id="ds-pressure-str6" class="value">Pressure: -- bar</div>
+          <div id="ds-time-str6" class="update-time">Update: --:--:--</div>
         </div>
 
         <div class="status-box">
           <strong id="ds-label-str7">Sterilizer 7</strong>
           <div id="ds-pressure-str7" class="value">Pressure: -- bar</div>
+          <div id="ds-time-str7" class="update-time">Update: --:--:--</div>
         </div>
       </div>
 
       <div class="chart-area" aria-label="Chart area">
         <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Pressure Trends (60 min)</div>
+            <div id="rangeText" class="range-text">Range: 0-6 bar</div>
+          </div>
           <div id="legendButtons" class="legend-container" role="toolbar" aria-label="Chart Legend"></div>
 
           <div class="chart-canvas" aria-hidden="false">
@@ -403,20 +450,21 @@
 
       <div class="note" role="region" aria-label="Laporan Gangguan / Catatan">
         <div class="note-left">
-          <label for="noteType">Laporan Gangguan / Catatan</label>
-          <select id="noteType" aria-label="Tipe laporan">
-            <option value="operational">Operational hour</option>
-            <option value="maintenance">Maintenance</option>
-            <option value="blades">Blades</option>
-          </select>
-          <label for="noteText" style="margin-top:8px;">Keterangan:</label>
-          <!-- textarea remains selectable and editable -->
-          <textarea id="noteText" rows="4" placeholder="Tulis catatan di sini..." aria-label="Keterangan"></textarea>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <label for="noteType" style="white-space:nowrap;">Laporan:</label>
+            <select id="noteType" style="padding:4px 8px; height:28px; font-size:12px;" aria-label="Tipe laporan">
+              <option value="operational">Operational hour</option>
+              <option value="maintenance">Maintenance</option>
+              <option value="blades">Blades</option>
+            </select>
+          </div>
+          <textarea id="noteText" rows="1" style="padding:4px 8px; font-size:12px; height:32px; min-height:32px;"
+            placeholder="Tulis catatan (opsional)..." aria-label="Keterangan"></textarea>
         </div>
         <div class="note-right">
-          <div style="font-weight:800;">Aksi</div>
-          <button id="sendNoteBtn" type="button" aria-label="Kirim Laporan">Kirim Laporan</button>
-          <div id="noteStatus" class="note-status" aria-live="polite"></div>
+          <button id="sendNoteBtn" type="button" style="height:100%;" aria-label="Kirim Laporan">Kirim Laporan</button>
+          <div id="noteStatus" class="note-status" style="position:absolute; right:10px; top:-18px;" aria-live="polite">
+          </div>
         </div>
       </div>
 
@@ -459,44 +507,42 @@
   </div>
 
   <script>
-    /* Prevent dragstart & selectstart for non-form elements.
-       Allow form controls (input/select/textarea) to behave normally.
-       This JS is defensive — CSS handles most cases, but JS prevents
-       cases where browsers still allow dragging or selection via events. */
+
+
     (function () {
       document.addEventListener('dragstart', function (e) {
-        // allow drag if target is a form control (rare) or has attribute draggable="true"
+
         if (e.target && (e.target.closest('input,textarea,select') || e.target.getAttribute('draggable') === 'true')) return;
         e.preventDefault();
       }, { passive: false });
 
       document.addEventListener('selectstart', function (e) {
-        // allow selection if inside input/textarea/select or explicitly allowed
+
         if (e.target && (e.target.closest('input,textarea,select') || e.target.closest('.allow-select'))) return;
         e.preventDefault();
       }, { passive: false });
 
-      // also prevent touch callout (long-press) on Android/iOS where CSS might not be enough
       document.addEventListener('touchstart', function (e) {
-        // no-op; keeping listener present avoids some long-press defaults on certain webviews
+
       }, { passive: true });
     })();
 
-    /* (Below: the rest of your original JS can remain unchanged) */
+
     (function () {
-      /* ---------- CONFIG: set X window = 30 minutes (1800s), Y fixed 0-6 ---------- */
+
       const CONFIG = {
-        MAX_POINTS: 50,
-        WINDOW_SECONDS: 5 * 60, // 30 minutes (note: kept the original value as in your file)
+        MAX_POINTS: 400,
+        WINDOW_SECONDS: 60 * 60, // 60 minutes
         WS_PATH: '/ws/mqtt',
-        TARGET_FPS: 25
+        TARGET_FPS: 25,
+        PAD: { l: 65, r: 10, t: 15, b: 55 }
       };
 
       const DATASETS = [
-        { label: 'BPV', field: 'bpv', color: '#8e44ad', id: 'ds-pressure-bpv', css: 'c-bpv', a11yId: 'a11y-bpv', a11yTimeId: 'a11y-bpv-time' },
-        { label: 'Sterilizer 5', field: 'sterilizer.5', color: '#0b8b10', id: 'ds-pressure-str5', css: 'c-ster5', a11yId: 'a11y-str5', a11yTimeId: 'a11y-str5-time' },
-        { label: 'Sterilizer 6', field: 'sterilizer.6', color: '#004bff', id: 'ds-pressure-str6', css: 'c-ster6', a11yId: 'a11y-str6', a11yTimeId: 'a11y-str6-time' },
-        { label: 'Sterilizer 7', field: 'sterilizer.7', color: '#1fa3a3', id: 'ds-pressure-str7', css: 'c-ster7', a11yId: 'a11y-str7', a11yTimeId: 'a11y-str7-time' }
+        { label: 'BPV', field: 'bpv', color: '#8e44ad', id: 'ds-pressure-bpv', timeId: 'ds-time-bpv', css: 'c-bpv', a11yId: 'a11y-bpv', a11yTimeId: 'a11y-bpv-time' },
+        { label: 'Sterilizer 5', field: 'sterilizer.5', color: '#0b8b10', id: 'ds-pressure-str5', timeId: 'ds-time-str5', css: 'c-ster5', a11yId: 'a11y-str5', a11yTimeId: 'a11y-str5-time' },
+        { label: 'Sterilizer 6', field: 'sterilizer.6', color: '#004bff', id: 'ds-pressure-str6', timeId: 'ds-time-str6', css: 'c-ster6', a11yId: 'a11y-str6', a11yTimeId: 'a11y-str6-time' },
+        { label: 'Sterilizer 7', field: 'sterilizer.7', color: '#1fa3a3', id: 'ds-pressure-str7', timeId: 'ds-time-str7', css: 'c-ster7', a11yId: 'a11y-str7', a11yTimeId: 'a11y-str7-time' }
       ];
 
       const STATE = {
@@ -508,6 +554,64 @@
         reconnectTimer: null,
         reconnectAttempts: 0
       };
+
+      function saveState() {
+        try {
+          const data = {
+            times: STATE.times,
+            series: STATE.series,
+            labels: STATE.labels
+          };
+          localStorage.setItem('hmi_str_data', JSON.stringify(data));
+        } catch (e) {
+          console.warn('Failed to save state', e);
+        }
+      }
+
+      function updateStatusBoxes() {
+        if (!STATE.times.length) return;
+        const lastTs = STATE.times[STATE.times.length - 1];
+
+        DATASETS.forEach((d, i) => {
+          if (d.id && ui.dsEls[i]) {
+            const arr = STATE.series[i];
+            let last = null;
+            for (let k = arr.length - 1; k >= 0; k--) {
+              const v = arr[k];
+              if (typeof v === 'number') { last = v; break; }
+            }
+            ui.dsEls[i].textContent = last == null ? 'Pressure: --' : 'Pressure: ' + Number(last).toFixed(2) + ' bar';
+
+
+            const tsEl = document.getElementById(d.timeId);
+            if (tsEl) {
+              tsEl.textContent = 'Update: ' + formatTimeLabel(lastTs);
+            }
+          }
+        });
+
+        updateA11ySummary(lastTs);
+      }
+
+      function loadState() {
+        try {
+          const saved = localStorage.getItem('hmi_str_data');
+          if (saved) {
+            const data = JSON.parse(saved);
+            if (data.times && data.series && data.labels) {
+              STATE.times = data.times;
+              STATE.series = data.series;
+              STATE.labels = data.labels;
+
+              pruneOldPoints(Date.now() / 1000 - CONFIG.WINDOW_SECONDS);
+              updateStatusBoxes();
+              dirty = true;
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to load state', e);
+        }
+      }
 
       const ui = {
         conn: document.getElementById('connection-status'),
@@ -533,16 +637,19 @@
       function fit() {
         if (!canvas) return;
         const container = canvas.parentElement;
-        const rect = container.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-        const w = Math.max(1, Math.round(rect.width * dpr));
-        const h = Math.max(1, Math.round(rect.height * dpr));
-        if (canvas.width !== w || canvas.height !== h || lastViewport.dpr !== dpr || lastViewport.w !== rect.width || lastViewport.h !== rect.height) {
+
+        const wLayout = container.clientWidth;
+        const hLayout = container.clientHeight;
+        const w = Math.max(1, Math.round(wLayout * dpr));
+        const h = Math.max(1, Math.round(hLayout * dpr));
+
+        if (canvas.width !== w || canvas.height !== h || lastViewport.dpr !== dpr || lastViewport.w !== wLayout || lastViewport.h !== hLayout) {
           canvas.width = w; canvas.height = h;
-          canvas.style.width = rect.width + 'px';
-          canvas.style.height = rect.height + 'px';
+          canvas.style.width = wLayout + 'px';
+          canvas.style.height = hLayout + 'px';
           if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          lastViewport = { w: rect.width, h: rect.height, dpr };
+          lastViewport = { w: wLayout, h: hLayout, dpr };
           buildGridCache();
         }
       }
@@ -572,26 +679,27 @@
       function buildGridCache() {
         if (!canvas) return;
         const container = canvas.parentElement;
-        const rect = container.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-        const cssW = rect.width, cssH = rect.height;
+        const cssW = container.clientWidth, cssH = container.clientHeight;
         const pixelW = Math.max(1, Math.round(cssW * dpr));
         const pixelH = Math.max(1, Math.round(cssH * dpr));
-        const pad = { l: 68, r: 10, t: 12, b: 80 };
+        const pad = CONFIG.PAD;
         const yRows = 5, xCols = 6;
 
         if (gridCache && lastViewport.w === cssW && lastViewport.h === cssH && lastViewport.dpr === dpr) return;
 
         const c = document.createElement('canvas');
         c.width = pixelW; c.height = pixelH;
-        c.style.width = cssW + 'px'; c.style.height = cssH + 'px';
         const gctx = c.getContext('2d');
+
+        // Fill entire offscreen buffer with white to avoid compositing issues or transparent 'holes'
+        gctx.fillStyle = '#fff';
+        gctx.fillRect(0, 0, pixelW, pixelH);
+
         gctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
         const plotW = cssW - pad.l - pad.r;
         const plotH = cssH - pad.t - pad.b;
-        gctx.fillStyle = '#fff';
-        gctx.fillRect(pad.l - 1, pad.t - 1, plotW + 2, plotH + 2);
 
         gctx.strokeStyle = '#eef2f7'; gctx.lineWidth = 1;
         for (let r = 0; r <= yRows; r++) {
@@ -706,56 +814,54 @@
         insertAt(idx, ts, label, values);
         pruneOldPoints(ts - CONFIG.WINDOW_SECONDS);
 
-        // update small status boxes
-        DATASETS.forEach((d, i) => {
-          if (d.id && ui.dsEls[i]) {
-            const arr = STATE.series[i];
-            let last = null;
-            for (let k = arr.length - 1; k >= 0; k--) {
-              const v = arr[k];
-              if (typeof v === 'number') { last = v; break; }
-            }
-            ui.dsEls[i].textContent = last == null ? 'Pressure: --' : 'Pressure: ' + Number(last).toFixed(2) + ' bar';
-          }
-        });
 
-        updateA11ySummary(ts);
+        updateStatusBoxes();
+
+        saveState();
         dirty = true;
       }
 
       function draw(displayNowSec) {
         if (!ctx) return;
         fit();
-        const containerRect = canvas.parentElement.getBoundingClientRect();
-        const rect = { width: containerRect.width, height: containerRect.height };
-        const pad = { l: 68, r: 10, t: 12, b: 80 };
-        const plotW = rect.width - pad.l - pad.r;
-        const plotH = rect.height - pad.t - pad.b;
+        const dpr = window.devicePixelRatio || 1;
+        const cssW = canvas.parentElement.clientWidth;
+        const cssH = canvas.parentElement.clientHeight;
+        const pad = CONFIG.PAD;
+        const plotW = cssW - pad.l - pad.r;
+        const plotH = cssH - pad.t - pad.b;
 
-        ctx.clearRect(0, 0, rect.width, rect.height);
+        // Pixel-perfect clear and grid draw to avoid scaling ghosting/artifacts
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (gridCache) {
-          ctx.drawImage(gridCache, 0, 0, rect.width, rect.height);
+          ctx.drawImage(gridCache, 0, 0);
         } else {
           ctx.fillStyle = '#fff';
-          ctx.fillRect(pad.l - 1, pad.t - 1, plotW + 2, plotH + 2);
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
+        ctx.restore();
 
-        // default window
+        // High-level drawing with DPR transform
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+
         let endTime = displayNowSec;
         let startTime = endTime - CONFIG.WINDOW_SECONDS;
 
-        // If we have data and the data span is less than window, anchor start at earliest data
+
         if (STATE.times.length > 0) {
           const first = STATE.times[0];
           const last = STATE.times[STATE.times.length - 1];
           const dataSpan = last - first;
           if (dataSpan < CONFIG.WINDOW_SECONDS) {
-            // put earliest data at left (startTime = first) and end = first + window
+
             startTime = first;
             endTime = startTime + CONFIG.WINDOW_SECONDS;
           } else {
-            // otherwise use rolling window to always show recent data up to endTime
-            // but ensure endTime >= last (so newest data is visible)
+
+
             endTime = Math.max(endTime, last);
             startTime = endTime - CONFIG.WINDOW_SECONDS;
           }
@@ -763,11 +869,11 @@
 
         pruneOldPoints(startTime);
 
-        // Y fixed 0..6
-        const pr = { min: 0, max: 6 };
-        ui.rangeText && (ui.rangeText.textContent = `Y: ${pr.min.toFixed(0)}–${pr.max.toFixed(0)} bar · X: 30 menit`);
 
-        // Draw Y labels (5 rows)
+        const pr = { min: 0, max: 6 };
+        ui.rangeText && (ui.rangeText.textContent = `Y: ${pr.min.toFixed(0)}–${pr.max.toFixed(0)} bar · X: 60 menit`);
+
+
         ctx.fillStyle = '#374151'; ctx.font = '12px ' + (navigator.userAgent.indexOf('Windows') >= 0 ? 'Arial' : 'system-ui');
         ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
         const yRows = 5;
@@ -780,50 +886,64 @@
 
         ctx.save(); ctx.translate(14, pad.t + plotH / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.fillStyle = '#111827'; ctx.font = '13px system-ui'; ctx.fillText('Pressure (bar)', 0, -8); ctx.restore();
 
-        // X labels and visible indices using binary search
+
         const startIdx = binarySearchInsertIndex(STATE.times, startTime);
         const endIdx = binarySearchInsertIndex(STATE.times, endTime + 0.000001);
         const visibleCount = Math.max(0, endIdx - startIdx);
 
-        ctx.fillStyle = '#6b7280';
-        ctx.font = '12px system-ui';
-        const bottomExtra = 28;
+        const labelFont = 'bold 12px Arial, sans-serif'; // Bolder
+        const labelColor = '#000'; // Pure black for max contrast
+        ctx.font = labelFont;
+        ctx.fillStyle = labelColor;
+        const bottomOffset = 18;
 
         if (!visibleCount) {
-          const approxLabelWidth = 90;
-          const maxLabelsBySpace = Math.max(2, Math.floor(plotW / approxLabelWidth));
-          const labelCount = Math.min(6, maxLabelsBySpace);
+
+          const labelCount = 10;
           for (let k = 0; k < labelCount; k++) {
             const frac = k / Math.max(1, labelCount - 1);
             const ts = startTime + frac * (endTime - startTime);
             const x = pad.l + plotW * frac;
+            const y = pad.t + plotH + bottomOffset;
+
             ctx.save();
-            ctx.translate(x, pad.t + plotH + 18 + bottomExtra / 2);
-            ctx.rotate(-Math.PI / 10);
+            ctx.translate(x, y);
+            ctx.rotate(-Math.PI / 8);
             ctx.textAlign = 'right';
             ctx.textBaseline = 'middle';
+            ctx.fillStyle = labelColor;
+            ctx.font = labelFont;
             ctx.fillText(formatTimeLabel(ts), 0, 0);
             ctx.restore();
           }
         } else {
-          const maxXLabels = Math.min(6, Math.max(2, Math.floor(plotW / 90)));
-          const step = Math.max(1, Math.floor(visibleCount / maxXLabels));
-          for (let ii = startIdx; ii < endIdx; ii += step) {
-            const ts = STATE.times[ii];
-            const fracX = (ts - startTime) / (endTime - startTime);
+
+          const timeSpan = endTime - startTime;
+          const labelInterval = 120; // 2 minutes (120 seconds)
+
+
+          let firstLabelTime = Math.ceil(startTime / labelInterval) * labelInterval;
+
+          for (let t = firstLabelTime; t <= endTime; t += labelInterval) {
+            const fracX = (t - startTime) / timeSpan;
+            if (fracX < 0 || fracX > 1) continue;
+
             const x = pad.l + plotW * fracX;
-            const y = pad.t + plotH + 18 + bottomExtra / 2;
+            const y = pad.t + plotH + bottomOffset;
+
             ctx.save();
             ctx.translate(x, y);
-            ctx.rotate(-Math.PI / 6);
+            ctx.rotate(-Math.PI / 8);
             ctx.textAlign = 'right';
             ctx.textBaseline = 'middle';
-            ctx.fillText(formatTimeLabel(ts), 0, 0);
+            ctx.fillStyle = labelColor;
+            ctx.font = labelFont;
+            ctx.fillText(formatTimeLabel(t), 0, 0);
             ctx.restore();
           }
         }
 
-        // draw datasets
+
         for (let si = 0; si < DATASETS.length; si++) {
           if (!STATE.visible[si]) continue;
           const d = DATASETS[si];
@@ -950,14 +1070,15 @@
       window.__hmi = { pushPayload, STATE, CONFIG };
 
       function cleanup() {
-        try { if (raf) cancelAnimationFrame(raf); } catch (e) {}
-        try { if (STATE.ws) STATE.ws.close(); } catch (e) {}
-        try { if (STATE.reconnectTimer) clearTimeout(STATE.reconnectTimer); } catch (e) {}
-        try { if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; } } catch (e) {}
-        try { window.removeEventListener('resize', applyScale); window.removeEventListener('hmi-resize', fit); window.removeEventListener('resize', fit); } catch (e) {}
+        try { if (raf) cancelAnimationFrame(raf); } catch (e) { }
+        try { if (STATE.ws) STATE.ws.close(); } catch (e) { }
+        try { if (STATE.reconnectTimer) clearTimeout(STATE.reconnectTimer); } catch (e) { }
+        try { if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; } } catch (e) { }
+        try { window.removeEventListener('resize', applyScale); window.removeEventListener('hmi-resize', fit); window.removeEventListener('resize', fit); } catch (e) { }
       }
       window.addEventListener('beforeunload', cleanup);
 
+      loadState();
       fit();
       if (!raf) raf = requestAnimationFrame(anim);
 
