@@ -66,7 +66,7 @@
         "type": "function",
         "z": "c563570e77df377e",
         "name": "Format for WebSocket",
-        "func": "\n\nlet payload = {\n  time: new Date().toISOString(),\n  boiler: {}\n};\n\nmsg.payload.forEach(row => {\n  if(row._field === 'boiler1') payload.boiler['1'] = row._value;\n  if(row._field === 'boiler2') payload.boiler['2'] = row._value;\n  if(row._field === 'boiler3') payload.boiler['3'] = row._value;\n  if(row._time) payload.time = row._time;\n});\n\nmsg.payload = payload;\nreturn msg;",
+        "func": "\n\nlet payload = {\n  time: new Date().toLocaleString('en-GB', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(',', ''),\n  boiler: {}\n};\n\nmsg.payload.forEach(row => {\n  if(row._field === 'boiler1') payload.boiler['1'] = row._value;\n  if(row._field === 'boiler2') payload.boiler['2'] = row._value;\n  if(row._field === 'boiler3') payload.boiler['3'] = row._value;\n  if(row._time) {\n     // Convert InfluxDB UTC time to WIB\n     payload.time = new Date(row._time).toLocaleString('en-GB', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(',', '');\n  }\n});\n\nmsg.payload = payload;\nreturn msg;",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
