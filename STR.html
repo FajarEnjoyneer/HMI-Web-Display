@@ -871,21 +871,12 @@
         let endTime = displayNowSec;
         let startTime = endTime - CONFIG.WINDOW_SECONDS;
 
-
+        // Always position the latest data point at the right edge for real-time feel
         if (STATE.times.length > 0) {
-          const first = STATE.times[0];
           const last = STATE.times[STATE.times.length - 1];
-          const dataSpan = last - first;
-          if (dataSpan < CONFIG.WINDOW_SECONDS) {
-
-            startTime = first;
-            endTime = startTime + CONFIG.WINDOW_SECONDS;
-          } else {
-
-
-            endTime = Math.max(endTime, last);
-            startTime = endTime - CONFIG.WINDOW_SECONDS;
-          }
+          // Use the latest data timestamp as the right edge
+          endTime = last;
+          startTime = endTime - CONFIG.WINDOW_SECONDS;
         }
 
         pruneOldPoints(startTime);
